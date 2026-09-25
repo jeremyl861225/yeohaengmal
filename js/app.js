@@ -65,6 +65,8 @@ function unitBadge(u, sm = false) {
   const t = THEME[u.th];
   return `<span class="badge${sm ? ' sm' : ''}" style="${fieldVars(t)}" aria-hidden="true"><span class="code">${TIER[u.t].name[0]}</span><span class="no">${stnNo(u)}</span></span>`;
 }
+// 單字編號（照學習順序）：0001、0002…
+const no4 = (c) => String(c.sq || 0).padStart(4, '0');
 // 首爾地鐵式站號：線號＋兩位數（必備線第 1 站＝101）
 const stnNo = (u) => `${u.t}${String(u.sn).padStart(2, '0')}`;
 const stationName = (u) => `${TIER[u.t].name}線第 ${u.sn} 站`;
@@ -261,7 +263,7 @@ function viewUnit(uid) {
     const c = BYID[id];
     return `<a class="row word-row${store.seen[id] ? ' seen' : ''}" href="#/learn/${uid}/${i}" data-autoplay>
       <span class="idx" aria-hidden="true">${i + 1}</span>
-      <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh">${esc(c.zh)}</span></span>
+      <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh"><span class="r-no">${no4(c)}</span>${esc(c.zh)}</span></span>
       ${starBtn(id)}
     </a>`;
   }).join('');
@@ -289,6 +291,7 @@ function cardHTML(card, opts = {}) {
       ${card.note ? `<div class="note">${koIn(card.note)}</div>` : ''}
     </div>` : (card.note ? `<div class="panel"><div class="note" style="border:0;margin:0;padding:0">${koIn(card.note)}</div></div>` : '');
   return `<article class="card stage${lastDir ? ' from-' + lastDir : ''}">
+    <div class="sq" aria-label="編號 ${no4(card)}">${no4(card)}</div>
     <div class="word" lang="ko" style="--hw:${wordSize(w)}px">${rubyHTML(card.w)}</div>
     ${readHTML(card)}
     <p class="meaning${veil}" data-veil tabindex="0">${esc(card.zh)}</p>
@@ -410,6 +413,7 @@ function filterCards() {
   if (browse.tier) list = list.filter((c) => c.t === browse.tier);
   if (browse.th) list = list.filter((c) => c.th === browse.th);
   if (browse.star) list = list.filter((c) => isStarred(c.id));
+  if (/^\d{1,4}$/.test(q)) return list.filter((c) => c.sq === Number(q)); // 輸入編號直接找那張卡
   if (q) {
     const nq = normQuery(q);
     let hit, starts;
@@ -438,7 +442,7 @@ function filterCards() {
 function rowHTML(c) {
   return `<a class="row" href="#/card/${c.id}" data-autoplay>
     ${UNIT[c.u] ? unitBadge(UNIT[c.u], true) : ''}
-    <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh">${esc(c.zh)}</span></span>
+    <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh"><span class="r-no">${no4(c)}</span>${esc(c.zh)}</span></span>
     ${starBtn(c.id)}
   </a>`;
 }
@@ -449,7 +453,7 @@ function viewBrowse() {
     .concat(DATA.themes.map((t) => `<button class="chip" data-f-th="${t.id}" aria-pressed="${browse.th === t.id}" style="${fieldVars(t)}"><span class="dot"></span>${esc(t.name)}</button>`)).join('');
   $app.innerHTML = `
     <div class="search">
-      <label class="search-box">${I.search()}<input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="查單字：韓文、拼音、漢字、中文、英文" value="${esc(browse.q)}" aria-label="搜尋單字"></label>
+      <label class="search-box">${I.search()}<input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="查單字：韓文、拼音、漢字、中文、英文、編號" value="${esc(browse.q)}" aria-label="搜尋單字"></label>
       <div class="chips" role="group" aria-label="依等級篩選">${tierChips}<button class="chip" data-f-star aria-pressed="${browse.star}">${I.star('ico-s')}只看不熟</button></div>
       <div class="chips" role="group" aria-label="依主題篩選">${themeChips}</div>
     </div>

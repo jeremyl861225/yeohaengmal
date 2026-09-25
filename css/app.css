@@ -684,3 +684,11 @@ body.no-tabbar:not(:has(.sheet)) .toast { bottom: calc(96px + var(--safe-b)); }
 @keyframes sun-rise { from { opacity: 0; transform: translateY(6%) scale(0.82); } to { opacity: 1; transform: none; } }
 @keyframes tabi-in { from { opacity: 0; transform: translateY(10%); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #splash { display: none; } }
+
+/* 單字編號（照學習順序，0001 起）：淡淡的小灰字，不加框（2026-09-25 使用者指定：字卡上放在單字的左上角） */
+.card .sq { text-align: left; margin: 2px 2px 0; font-family: var(--ui); font-size: 12.5px; font-weight: 500; line-height: 1.2;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--n4); }
+.card .sq + .word { margin-top: 0; }
+:root[data-theme="dark"] .card .sq { color: var(--n6); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card .sq { color: var(--n6); } }
+.r-no { font-family: var(--ui); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--n4); margin-right: 8px; }

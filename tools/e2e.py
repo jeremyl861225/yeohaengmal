@@ -102,6 +102,17 @@ def main():
             ids = pg.eval_on_selector_all(".row", "els => els.map(e => e.getAttribute('href'))")
             check(f"#/card/{target['id']}" in ids, f"搜尋「{q}」找不到 {target['id']}")
 
+        # 編號：照學習順序 1..N 不重複；搜尋框輸入編號找得到那張卡
+        sqs = sorted(c.get("sq", 0) for c in cards)
+        check(sqs == list(range(1, len(cards) + 1)), "單字編號不是 1..N 連續不重複")
+        pick = next(c for c in cards if c.get("sq") == 1)
+        pg.fill("#q", "0001")
+        pg.wait_for_timeout(150)
+        ids = pg.eval_on_selector_all(".row", "els => els.map(e => e.getAttribute('href'))")
+        check(ids == [f"#/card/{pick['id']}"], f"搜尋編號 0001 應只找到 {pick['id']}，實際 {ids[:3]}")
+        pg.fill("#q", "")
+        pg.wait_for_timeout(150)
+
         # 篩選標籤列：捲到右邊再點，列表不能跳回最前面
         pg.evaluate("document.querySelectorAll('.chips')[1].scrollLeft = 400")
         x0 = pg.evaluate("document.querySelectorAll('.chips')[1].scrollLeft")
