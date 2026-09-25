@@ -36,6 +36,8 @@ def sort_key(it):
 
 
 def main():
+    global by_id
+    _, _, by_id = krdict()
     cands = {c["key"]: c for c in json.load(open(os.path.join(BUILD, "candidates.json"), encoding="utf-8"))}
     dec = load_decisions()
     missing = [k for k in cands if k not in dec]
@@ -45,8 +47,11 @@ def main():
     items, merges = {}, []
     for key, d in dec.items():
         if key not in cands:
-            if d.get("keep") and d.get("added"):   # 人工補的詞（來源段落有整組列出、但抽取只抓到部分）
+            if d.get("keep") and d.get("added"):   # 人工補的詞（來源沒收到、但使用者指定的主題需要的字）
                 cands[key] = {"key": key, "n": len(d.get("sources", [])), "sources": d.get("sources", []), "meanings": d.get("meanings", {}), "gloss": []}
+                if key.startswith("w:") and key[2:] in by_id:      # 字典查得到的：帶入原形、唸法、漢字、英文對譯
+                    e = by_id[key[2:]]
+                    cands[key].update({"lemma": e["w"], "lemma_pron": e["pron1"], "origin": e["origin"], "pos": e["pos"], "gloss": e["en"][:6]})
             else:
                 continue
         if d.get("keep"):
@@ -55,7 +60,7 @@ def main():
                 print("主題代碼錯誤", key, th)
                 continue
             c = cands[key]
-            items[key] = {"key": key, "head": re.sub(r"\s+", " ", d["head"].strip()), "kind": d.get("kind", "w"), "theme": th,
+            items[key] = {"key": key, "head": re.sub(r"\s+", " ", d["head"].strip()), "kind": d.get("kind", "w"), "theme": th, "force": bool(d.get("force")),
                           "origin": d["origin"] if "origin" in d else c.get("origin", ""), "origin_set": "origin" in d,
                           "lemma": c.get("lemma", ""), "lemma_pron": c.get("lemma_pron", ""), "pos_kd": c.get("pos", ""),
                           "sources": set(c["sources"]), "fix": d.get("fix", ""),
@@ -123,6 +128,21 @@ def main():
         sel = [it for k, it in enumerate(sel) if k not in drop] + extra
         sel.sort(key=sort_key)
         print(f"主題保底補入 {len(extra)} 個：", collections.Counter(it["theme"] for it in extra).most_common())
+    # 一定要收的字（manual.json 的 force：使用者指定的主題裡，來源都沒收到的關鍵字，例如 키오스크、택스 리펀드、원 플러스 원）
+    forced = [it for it in pool if it.get("force") and it not in sel]
+    if forced:
+        drop, i = set(), len(sel) - 1
+        while len(drop) < len(forced) and i >= 0:
+            th = sel[i]["theme"]
+            if not sel[i].get("force") and have[th] > floor[th]:
+                drop.add(i)
+                have[th] -= 1
+            i -= 1
+        sel = [it for k, it in enumerate(sel) if k not in drop] + forced
+        for it in forced:
+            have[it["theme"]] += 1
+        sel.sort(key=sort_key)
+        print(f"指定收錄 {len(forced)} 個：", [it["head"] for it in forced])
     short = {th: have[th] for th in THEME_IDS if have[th] < floor[th]}
     if short:
         print("保底仍不足的主題（候選不夠，要補來源）：", short)

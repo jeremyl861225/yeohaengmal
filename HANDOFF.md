@@ -27,8 +27,13 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [x] App 外殼：複製旅ことば並改名（localStorage `yeohaengmal/v1`、快取 `yeohaengmal-v1`／`yeohaengmal-audio`、備份 `app: yeohaengmal`）
 - [x] 韓文專用：漢字標記 `{공항|空港}`、實際唸法＋羅馬拼音顯示、搜尋（相容字母前綴、初聲、拼音、漢字、中文）、音節方塊拼字題、看韓文選實際唸法題、首爾地鐵式站號、太極開場、Noto Serif KR 子集字型
 - [x] 30 張樣本（`workspace/.../make_sample.py`，漢字與唸法對過 KRDict）＋樣本發音
-- [ ] 來源蒐集（兩個代理進行中，編號 zh/en/ko-01～19 與 21～39）
-- [ ] 正規化 → 選字 → 排名分課 → 撰寫 → build_data（qa 清到 0）→ 發音 → 字典 → e2e → 上線
+- [x] 來源蒐集：69 份（zh 30、en 27、ko 12）→ 工作區 `sources/`（編號 zh/en/ko-01～19、21～39、40～49 三個代理分段）
+- [x] 正規化：5,451 個候選（`build/candidates.json`）；規則剔除 1,099（`build/curate/out-00-auto.json`：冷門菜名、廣播全文、單一來源長句）
+- [x] 指定收錄 25 個來源都沒收到的關鍵字（`build/curate/manual.json`，`force: true`：키오스크、택스 리펀드、원 플러스 원、불판、카카오 T、유심…）
+- [ ] 選字（進行中）：`build/curate/in-01…30.json` → `out-*.json`。01 完成（Opus）；**2026-09-25 11:50 撞到用量上限**，02～06 改用 Sonnet 代理接續（03 保留前 40 條）。
+      07～15（只被一份收錄的字典詞）照 RULES.md；16～30（只被一份收錄的詞組）走快速分流 TRIAGE.md → `tools/pipeline/tri2out.py`；
+      代理停擺就用 `tools/pipeline/auto_curate.py in-NN.json` 規則補完
+- [ ] 排名分課（`select.py`）→ 課名（`build/UNIT_NAMES.md`）→ 撰寫（`build/author/PROMPT.md`）→ build_data（qa 清到 0）→ 發音 → e2e → 上線
 
 ## 工具（已改成韓文版的）
 
@@ -41,7 +46,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 | `tools/make_icons.py` | 圖示（`--text`、`--font` 可做候選） |
 | `tools/make_audio.py` | edge-tts 發音（f／m） |
 
-還沒改的：`tools/build_data.py`、`build_dict.py`、`e2e.py`、`pipeline/select.py`、`pipeline/author_prep.py`（日文版原樣，進到該階段再改）。
+管線（都已改成韓文版）：`pipeline/normalize.py`、`auto_drop.py`、`curate_prep.py`（依優先序切批；`YH_KEEP_IN` 保留進行中的批次）、`auto_curate.py`、`tri2out.py`、`select.py`（主題保底 30、DR 上限 20、`force` 指定收錄）、`author_prep.py`、`g2p_batch.py`；`tools/build_data.py`、`build_dict.py`（離線字典 20,947 詞）、`e2e.py`。
 
 Python 環境（工作區）：`.venv`（edge-tts、wordfreq[cjk]、kiwipiepy、korean-romanizer、opencc、fonttools、pymupdf、bs4）、
 `.venv-g2p`（g2pk2＋python-mecab-ko；和 wordfreq 的 mecab-python3 裝在一起會因為 macOS 檔名不分大小寫而互相蓋掉，所以分開）。
