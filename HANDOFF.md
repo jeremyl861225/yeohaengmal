@@ -38,8 +38,13 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
       逐條確認的誤報 `build/author/qa_ok.json`。build_data 的 qa 全部清空。
 - [x] 課名：`build/unit_names.json`（89 課，全 App 不重複）；必備線從寒暄開始。
 - [x] 字型子集重做（777 音節，124 KB）；`CACHE_VERSION` 升到 v2。
-- [ ] 發音（進行中）：`YH_TTS_CONCURRENCY=12 python tools/make_audio.py`（4,800 檔，可中斷續跑）；聲音暫用 SunHi＋InJoon。
-- [ ] e2e `--all-cards` → push 上線 → 線上驗證 → 使用者回覆圖示／開場／男聲後再調
+- [x] 發音：4,800 檔、53 MB、0 失敗（SunHi＋InJoon；`YH_TTS_CONCURRENCY=12` 約 40 分鐘）
+- [x] e2e `--all-cards` 通過（1,200 張、8 種題型都出現、打到一半／初聲／漢字／拼音搜尋、離線快取）
+- [x] **2026-09-25 上線** <https://jeremyl861225.github.io/yeohaengmal/>：CORE 17 檔 200、預先快取 17 筆、斷網開卡片與搜尋、快取裡的音檔可播（Chromium 實測）
+- [ ] 等使用者決定：圖示（A 여행 目前用這個／B 旅行／C 여，候選在工作區 `icon-candidates/` 與 iCloud「여행말 圖示候選」）、
+      太極開場、男聲（InJoon 或 Hyunsu；改 Hyunsu：`make_audio.py` 的 `VOICES['m']`＋`build_data.py` 的 `VOICE_NAMES`，刪 `build/tts-manifest.json` 裡 audio/m 的紀錄重跑，升 CACHE_VERSION）
+- [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
+- [ ] impeccable 收尾（finish reviewer＋DESIGN.md）
 
 ## 工具（已改成韓文版的）
 
