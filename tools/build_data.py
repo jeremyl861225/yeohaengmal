@@ -157,7 +157,8 @@ def pick_origin(cands):
     top_o, top_s = ranked[0]
     if native_best >= 2 and top_s <= native_best:
         return None
-    if len(ranked) == 1 or (top_s >= 2 and top_s > ranked[1][1]):
+    # 只挑初級、中級的漢字詞（가 的「可」是沒分級的冷僻義，句子裡的 가 其實是 가다）
+    if top_s >= 2 and (len(ranked) == 1 or top_s > ranked[1][1]):
         return top_o
     return None
 
@@ -173,7 +174,7 @@ def eojeol_marks(word, prefer=None, direct=False):
         tries.append((core, prefer[1]))        # 單一個詞的卡：選字時直接給的原語，先和卡片自己的寫法對齊（밀면＝밀＋麵）
     if prefer and prefer[0] and prefer[1]:
         tries.append(prefer)
-    cands, lem = entry_for(core)
+    cands, lem = entry_for(core) if len(core) >= 2 else ([], None)   # 單音節的語節太容易對錯（가 주세요 的 가），不查字典
     if cands:
         o = pick_origin(cands)
         if o:

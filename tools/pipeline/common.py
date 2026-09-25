@@ -66,12 +66,22 @@ def roma_index():
     return idx
 
 
+# 韓國自造的漢字（固有漢字），台灣讀者看不懂、字型也常缺字：有這些字的詞不標漢字（얼음＝乻音、배탈＝배 頉、옷장＝옷 欌）
+KOREAN_MADE = set("乻乭乶乫乬乮乯乺乼乽乿亇垈媤畓頉欌㺚䱋夻閪䓞橴鐥")
+# 韓國通行的舊字形 → 台灣標準字形（只用在畫面顯示，讓台灣讀者一眼認得）
+KO_TO_TW = str.maketrans({"敎": "教", "産": "產", "査": "查", "淸": "清", "飮": "飲", "鄕": "鄉", "爲": "為", "甁": "瓶", "硏": "研",
+                          "槪": "概", "僞": "偽", "顔": "顏", "倂": "併", "値": "值", "晩": "晚", "奬": "獎", "尙": "尚", "顚": "顛",
+                          "緖": "緒", "愼": "慎", "隷": "隸", "郞": "郎", "揷": "插", "髥": "髯", "抛": "拋", "漑": "溉", "刹": "剎",
+                          "餠": "餅", "幇": "幫", "塡": "填", "戱": "戲", "絶": "絕", "屛": "屏", "卽": "即", "鎭": "鎮", "團": "團",
+                          "黃": "黃", "靑": "青", "緣": "緣", "錄": "錄", "綠": "綠", "說": "說", "稅": "稅", "脫": "脫", "銳": "銳"})
+
+
 def hanja_marks(word, origin):
     """KRDict 原語欄 → 逐段對齊的漢字標記。原語欄是漢字、韓文、外文混寫，有時用空白分段：
     「空港」「安寧 하다」「豫約하다」「三 겹살」「찜질 房」「空港bus」。依文字種類切成段：
     漢字段一字對一個音節；韓文段要和寫法逐字相同；外文段（bus）只能在最後（對應剩下的外來語音節，不標）。
     對不上就回傳 None。回傳 [(起, 迄, 漢字)]，位置是 word 的音節位置。"""
-    if not origin or not HANJA_RE.search(origin):
+    if not origin or not HANJA_RE.search(origin) or any(ch in KOREAN_MADE for ch in origin):
         return None
     origin = origin.replace("▽", "")
     if "[" in origin or "←" in origin:
@@ -106,12 +116,12 @@ def hanja_marks(word, origin):
 
 
 def apply_marks(text, marks):
-    """把 [(起, 迄, 漢字)] 套到字串上：{공항|空港}버스"""
+    """把 [(起, 迄, 漢字)] 套到字串上：{공항|空港}버스（漢字換成台灣字形：價値 → 價值）"""
     syl = list(text)
     out, last = [], 0
     for a, b, h in marks:
         out.append("".join(syl[last:a]))
-        out.append("{" + "".join(syl[a:b]) + "|" + h + "}")
+        out.append("{" + "".join(syl[a:b]) + "|" + h.translate(KO_TO_TW) + "}")
         last = b
     out.append("".join(syl[last:]))
     return "".join(out)
