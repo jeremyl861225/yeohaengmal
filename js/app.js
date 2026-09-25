@@ -644,8 +644,8 @@ function viewQuizRun() {
     answerArea = spellHTML(q);
   } else {
     const textOf = (o) => (q.type === 'pron' ? `［${o.r}］` : (q.type === 'k2z' || q.type === 'audz') ? o.c.zh : q.type === 'exl' ? o.c.exz : null);
-    // 唸法選項超過 5 個字（［실례함니다］）兩欄會斷行，改成一欄
-    const grid = q.type === 'pron' ? q.options.every((o) => [...o.r].length <= 5) : (q.type !== 'exl' && q.options.every((o) => (o.c ? plain(o.c.w).length <= 6 && o.c.zh.length <= 8 : true)));
+    // 唸法選項加上括號，5 個字（［감사함니다］）在兩欄就會斷行：4 個字以內才用兩欄
+    const grid = q.type === 'pron' ? q.options.every((o) => [...o.r].length <= 4) : (q.type !== 'exl' && q.options.every((o) => (o.c ? plain(o.c.w).length <= 6 && o.c.zh.length <= 8 : true)));
     const tiles = q.options.map((o, k) => {
       const t = textOf(o);
       const text = t != null ? `<span>${esc(t)}</span>` : `<span class="ko" lang="ko">${esc(plain(o.c.w))}</span>`;

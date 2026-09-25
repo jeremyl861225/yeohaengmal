@@ -34,8 +34,12 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
       01 用 Opus，其餘 Sonnet（11:50 撞到用量上限後改的）。
 - [x] 排名分課：1,200 張、90 課、300／450／450（`build/selection.json`、`build/ids.json`）。
       主題上限：自駕 20、動詞 60、數字 100（一般學習詞表會灌高動詞）；保底：機場 45，地鐵、住宿、餐廳、購物、店員廣播 40，其餘 30。
-- [ ] 撰寫（進行中，Sonnet 代理）：`build/author/in-01…12.json`（各 100）→ `out-*.json`
-- [ ] 課名（`build/UNIT_NAMES.md`）→ build_data（qa 清到 0）→ 發音 → 字型子集重做 → e2e → 上線
+- [x] 撰寫：12 批 × 100（Sonnet 代理）＋遞補 7 張（主線程）；人工修正 `build/author/fix.json`（19 條：蔘雞湯、醫美台灣譯名、例句只重寫卡片的 10 條、樣板句）、
+      逐條確認的誤報 `build/author/qa_ok.json`。build_data 的 qa 全部清空。
+- [x] 課名：`build/unit_names.json`（89 課，全 App 不重複）；必備線從寒暄開始。
+- [x] 字型子集重做（777 音節，124 KB）；`CACHE_VERSION` 升到 v2。
+- [ ] 發音（進行中）：`YH_TTS_CONCURRENCY=12 python tools/make_audio.py`（4,800 檔，可中斷續跑）；聲音暫用 SunHi＋InJoon。
+- [ ] e2e `--all-cards` → push 上線 → 線上驗證 → 使用者回覆圖示／開場／男聲後再調
 
 ## 工具（已改成韓文版的）
 

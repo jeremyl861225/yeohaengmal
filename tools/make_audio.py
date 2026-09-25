@@ -15,7 +15,7 @@ MANIFEST = os.path.join(WORK, "build", "tts-manifest.json")
 # 2026-09-25 暫定 SunHi＋InJoon（韓文只有 SunHi 一個女聲）；使用者試聽後若改 Hyunsu，換掉 m 並刪 tts-manifest 裡 audio/m 的紀錄重跑
 VOICES = {"f": "ko-KR-SunHiNeural", "m": "ko-KR-InJoonNeural"}
 FFMPEG = "/opt/homebrew/bin/ffmpeg"
-CONCURRENCY = 6
+CONCURRENCY = int(os.environ.get("YH_TTS_CONCURRENCY", 6))
 
 
 def trim(src, dst):
