@@ -17,7 +17,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 | 主題 | 日文版 22 條改韓國版（地鐵與交通卡、汗蒸幕與澡堂、美妝保養、咖啡廳與點餐機），加烤肉與炸雞、醫美與皮膚科、韓服與拍照打卡、追星與演唱會，共 26 條（`tools/themes.py`） |
 | 字量 | 約 1200（沿用） |
 | 外觀 | 沿用旅ことば，**配色一律照日文版**（米白底 #f7f5f0、一個家族一個顏色、下一站淡彩；2026-09-25 使用者要求）；路線改首爾地鐵風：墨色線號圓＋三位數站號（101、201…），不另加顏色 |
-| 聲音 | **待定**：試聽頁 <https://jeremyl861225.github.io/yeohaengmal/voices/>（同句三聲並排，repo 的 `voices/`，**選好就刪**；iCloud「韓文聲音試聽」也有）；韓文只有 SunHi 一個女聲，男聲 InJoon 或 Hyunsu。目前用 SunHi＋InJoon |
+| 聲音 | **定案：SunHi 女聲＋InJoon 男聲**（2026-09-25 使用者聽過三聲並排的試聽頁後說「利用目前的聲音即可」；另一個男聲 Hyunsu 不用）。試聽頁已撤 |
 | 圖示 | **待定**：候選 A「여행」（Noto Serif KR 粗體，目前用這個）、B「旅行」（同日文版）、C「여」，在工作區 `icon-candidates/` |
 | 開場 | 太極的紅藍圓＋米色「旅」（日文版是日の丸紅圓）——**還沒給使用者看過** |
 
@@ -49,7 +49,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
       卡片上方留 18px 不疊字；課程字表的號碼改成單字編號的淡灰小字、不加圈（看過的換課色），中文前不再重複；搜尋結果 `.r-no` 同色（`--ink-3`＋0.7 透明）。
       e2e 加查字卡編號與課程字表號碼。sw.js 的換頁只對 App 本身回 App 殼（子頁如 `voices/` 直接上網）；快取 v6
 - [ ] 等使用者決定：圖示（A 여행 目前用這個／B 旅行／C 여，候選在工作區 `icon-candidates/` 與 iCloud「여행말 圖示候選」）、
-      太極開場、男聲（InJoon 或 Hyunsu；改 Hyunsu：`make_audio.py` 的 `VOICES['m']`＋`build_data.py` 的 `VOICE_NAMES`，刪 `build/tts-manifest.json` 裡 audio/m 的紀錄重跑，升 CACHE_VERSION）
+      太極開場（男聲已定案維持 InJoon）
 - [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
 - [ ] impeccable 收尾（finish reviewer＋DESIGN.md）
 
