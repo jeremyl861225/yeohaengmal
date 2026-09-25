@@ -219,6 +219,11 @@ def markup(head, kind, lemma, origin, native=False):
 
 # ---------- 檢查 ----------
 def head_in_example(head, ex, lemma):
+    words = head.replace("~", "").split()
+    if len(words) > 1 and words[-1].endswith("다"):
+        e = norm_key(ex)
+        nouns_ok = all(norm_key(re.sub(r"(을|를|이|가|은|는|에|에서|으로|로)$", "", w)) in e for w in words[:-1])
+        return nouns_ok and head_in_example(words[-1], ex, "")
     h = norm_key(head.replace("~", ""))
     e = norm_key(ex)
     if h and h in e:
@@ -305,6 +310,8 @@ def main():
             authored.setdefault(d["id"], {}).update(d)
     themes = theme_list()
     tname = {t["id"]: t["name"] for t in themes}
+    okp = os.path.join(BUILD, "author", "qa_ok.json")
+    qa_ok = {(x[0], x[1]) for x in json.load(open(okp, encoding="utf-8"))} if os.path.exists(okp) else set()
 
     qa = collections.defaultdict(list)
     cards, tts, dropped = [], {}, set()
@@ -412,6 +419,12 @@ def main():
     out_path = os.environ.get("YH_DATA_OUT", os.path.join(ROOT, "data", "cards.json"))   # 試跑時可以寫到別處，不動線上的 cards.json
     json.dump(data, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(tts, open(os.path.join(BUILD, "tts.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=0)
+    for k in list(qa):
+        if k in ("unit_name_missing", "unit_title_duplicate", "dropped"):
+            continue
+        qa[k] = [x for x in qa[k] if (x[0] if isinstance(x, list) else x, k) not in qa_ok]
+        if not qa[k]:
+            del qa[k]
     json.dump(qa, open(os.path.join(BUILD, "qa.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     size = os.path.getsize(out_path)
     print(f"{len(cards)} 張卡、{len(units)} 課 → {out_path}（{size / 1024:.0f} KB）")

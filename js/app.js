@@ -278,10 +278,12 @@ function viewUnit(uid) {
 function cardHTML(card, opts = {}) {
   const w = plain(card.w);
   const veil = store.settings.veil && opts.learn ? ' veiled' : '';
+  // 店員與廣播對旅客說的句子：例句是「旅客可以這樣回答」；旅客自己說的句子，例句就是一般用法
+  const reply = card.k === 'p' && card.th === 'LS';
   const ex = card.ex ? `<div class="panel ex">
       <div class="ex-ko" lang="ko">${rubyHTML(card.ex)}</div>
-      <div class="ex-zh">${card.k === 'p' ? '<span class="ex-reply">可以這樣回答</span>' : ''}${esc(card.exz)}</div>
-      ${sayBtn(card.id, 'x', card.k === 'p' ? '回答' : '例句')}
+      <div class="ex-zh">${reply ? '<span class="ex-reply">可以這樣回答</span>' : ''}${esc(card.exz)}</div>
+      ${sayBtn(card.id, 'x', reply ? '回答' : '例句')}
       ${card.note ? `<div class="note">${koIn(card.note)}</div>` : ''}
     </div>` : (card.note ? `<div class="panel"><div class="note" style="border:0;margin:0;padding:0">${koIn(card.note)}</div></div>` : '');
   return `<article class="card stage${lastDir ? ' from-' + lastDir : ''}">
@@ -642,7 +644,8 @@ function viewQuizRun() {
     answerArea = spellHTML(q);
   } else {
     const textOf = (o) => (q.type === 'pron' ? `［${o.r}］` : (q.type === 'k2z' || q.type === 'audz') ? o.c.zh : q.type === 'exl' ? o.c.exz : null);
-    const grid = q.type === 'pron' || (q.type !== 'exl' && q.options.every((o) => (o.c ? plain(o.c.w).length <= 6 && o.c.zh.length <= 8 : true)));
+    // 唸法選項超過 5 個字（［실례함니다］）兩欄會斷行，改成一欄
+    const grid = q.type === 'pron' ? q.options.every((o) => [...o.r].length <= 5) : (q.type !== 'exl' && q.options.every((o) => (o.c ? plain(o.c.w).length <= 6 && o.c.zh.length <= 8 : true)));
     const tiles = q.options.map((o, k) => {
       const t = textOf(o);
       const text = t != null ? `<span>${esc(t)}</span>` : `<span class="ko" lang="ko">${esc(plain(o.c.w))}</span>`;

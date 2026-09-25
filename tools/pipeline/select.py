@@ -196,6 +196,9 @@ def main():
                 groups[host].extend(groups.pop(th))
                 groups[host].sort(key=lambda it: it["rank"])
         order = sorted(groups.items(), key=lambda kv: sum(x["rank"] for x in kv[1]) / len(kv[1]))
+        if tier == 1:
+            # 必備線從打招呼開始（平均排名最前面的是購物，但初學者第一課應該是寒暄）
+            order = [kv for kv in order if kv[0] == "GR"] + [kv for kv in order if kv[0] != "GR"]
         for th, g in order:
             k = math.ceil(len(g) / UNIT_MAX)
             size = math.ceil(len(g) / k)
