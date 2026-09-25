@@ -62,8 +62,9 @@ THEMES = [
 ]
 
 
-N1 = "#f5efe3"   # 淺色模式底（米色）
+N1 = "#f7f5f0"   # 淺色模式底：米白（2026-09-25 旅ことば定案，韓文版照用）
 N9 = "#1c1814"   # 深色模式底／深色文字（深咖啡）
+N8 = "#29241e"   # 深色模式的卡片面
 
 
 def _rgb(h):
@@ -121,12 +122,13 @@ def _pick(fam, role):
 
 
 def theme_list():
-    white, n9, n1 = [1, 1, 1], _rgb(N9), _rgb(N1)
+    white, n9, n1, n8 = [1, 1, 1], _rgb(N9), _rgb(N1), _rgb(N8)
     out = []
     for tid, name, ko in THEMES:
         fam, role = ASSIGN[tid]
         pal = PALETTES[fam]
-        c = _pick(fam, role)
+        # 同一家族的主題一律用家族主色 M（顏色＝分類，首頁家族色塊和下一站卡片才對得上；旅ことば 2026-09-25 定案）
+        c = _pick(fam, "M")
         dark = _rgb(pal[4])
         # 色場文字：白字或該色票的深字，取對比高者；都不到 4.5 就把色場往深字方向壓到白字過關
         cw, cd = contrast(c, white), contrast(c, dark)
@@ -151,6 +153,9 @@ def theme_list():
             "lD": _hex(_toward(c, white, n9, 3.0)),
             "tL": _hex(_toward(c, n9, n1, 4.5)),
             "tD": _hex(_toward(c, white, n9, 4.5)),
+            # 淡彩（首頁的下一站卡片）：白上 12% 的主題色、深色模式卡片面上 18%
+            "bgL": _hex(_mix(white, c, 0.12)),
+            "bgD": _hex(_mix(n8, c, 0.18)),
         })
     return out
 

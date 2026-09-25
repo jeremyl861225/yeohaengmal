@@ -1,5 +1,6 @@
 /* 여행말（旅ことば系列的韓文版）
-   底色一律米色（深色模式是深咖啡）；各類單元的 Colormind 色票只當點綴：路線、站點、發音鍵、按鈕、路線章。
+   配色照旅ことば（2026-09-25 定案）：米白底 #f7f5f0、白色卡片＋細框（深色模式是深咖啡）；一個主題家族一個顏色，
+   只當點綴（路線、站點、發音鍵、按鈕、路線章）與下一站卡片的淡彩；韓文版不另加顏色。
    韓文明朝（打包的 Noto Serif KR 子集）、中文宋體，字重偏細。首頁路線借用首爾地鐵的線號圓與三位數站號。
    動態只沿左右換站，短、不回彈、不擋操作。 */
 
@@ -9,10 +10,10 @@
 
 :root {
   /* 米色到深咖啡的暖色階：所有非路線色都從這裡取 */
-  --n0: #fffdf8;
-  --n1: #f5efe3;
-  --n2: #ebe3d4;
-  --n3: #d8ccb7;
+  --n0: #ffffff;
+  --n1: #f5f3ef;   /* 中性淡色塊（「全部」格等） */
+  --n2: #ebe7e0;
+  --n3: #dad4ca;
   --n4: #b2a48c;
   --n5: #786b59;
   --n6: #5d5345;
@@ -20,15 +21,15 @@
   --n8: #29241e;
   --n9: #1c1814;
 
-  --ground: var(--n1);
+  --ground: #f7f5f0;   /* 米白：白色卡片與色塊浮在上面 */
   --surface: var(--n0);
   --ink: var(--n9);
   --ink-2: var(--n6);
   --ink-3: var(--n5);
   --hair: var(--n2);
   --trunk: var(--n3);
-  --press: var(--n2);
-  --shadow: 0 1px 0 rgba(60, 45, 25, 0.06), 0 8px 24px rgba(60, 45, 25, 0.07);
+  --press: #efece6;
+  --shadow: 0 0 0 1px rgba(60, 45, 25, 0.09), 0 6px 18px rgba(60, 45, 25, 0.05);   /* 白底上靠細框＋淡陰影分出卡片 */
 
   --ok: #2f7a4f;
   --ng: #b3413a;
@@ -39,11 +40,6 @@
   --ko: "Yeohaengmal Serif", "Noto Serif KR", "AppleMyungjo", "Nanum Myeongjo", "Batang", "Apple SD Gothic Neo", serif;
   --tc: "Songti TC", "Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PMingLiU", serif;
   --num: "Songti TC", "Noto Serif TC", "Yeohaengmal Serif", serif;
-
-  /* 首爾地鐵式的線號圓（1 號線藍、2 號線綠、3 號線橘，壓暗到白字 ≥4.5:1） */
-  --line1: #2d5b9a;
-  --line2: #36805a;
-  --line3: #a95b26;
   --ui: -apple-system, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", system-ui, sans-serif;
 
   /* 點綴色（由程式依單元設定）：--line 是填色，--on 是填色上的字，--stroke 是畫在米色底上的線 */
@@ -217,8 +213,7 @@ body.no-tabbar .dock { bottom: 0; padding-bottom: calc(12px + var(--safe-b)); }
   position: relative;
   padding: 18px 18px 16px;
   border-radius: 24px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  background: var(--bgL, var(--surface));
   color: var(--ink);
   text-decoration: none;
 }
@@ -255,6 +250,10 @@ body.no-tabbar .dock { bottom: 0; padding-bottom: calc(12px + var(--safe-b)); }
 .fam[aria-pressed="true"] { background: var(--line); color: var(--on); box-shadow: none; }
 .fam[aria-pressed="true"] b::before { background: var(--on); }
 .fam[aria-pressed="true"] span { color: var(--on); opacity: 0.85; }
+:root[data-theme="dark"] .next { background: var(--bgD, var(--surface)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .next { background: var(--bgD, var(--surface)); }
+}
 
 /* 三條線：可收合 */
 .tier { margin-top: 22px; }
@@ -264,10 +263,8 @@ body.no-tabbar .dock { bottom: 0; padding-bottom: calc(12px + var(--safe-b)); }
 .tier-head { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 2px; padding: 4px 0; border-bottom: 1px solid var(--hair); }
 .tier[open] > .tier-head { margin-bottom: 6px; }
 .tier-head h2 { margin: 0; font-size: 23px; font-weight: 700; }
-/* 線號圓：首爾地鐵的路線標誌 */
-.line-no { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--line1); color: #fff; font-family: var(--ui); font-weight: 700; font-size: 15px; line-height: 1; }
-.tier[data-tier="2"] .line-no { background: var(--line2); }
-.tier[data-tier="3"] .line-no { background: var(--line3); }
+/* 線號圓：借首爾地鐵的路線標誌，但不另加顏色（配色照旅ことば：顏色只給主題家族），用墨色 */
+.line-no { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--surface); font-family: var(--ui); font-weight: 700; font-size: 15px; line-height: 1; }
 .stars { display: inline-flex; gap: 1px; color: var(--gold); }
 .stars svg { width: 15px; height: 15px; }
 .tier-head .tier-n { margin-left: auto; font-family: var(--ui); font-weight: 500; font-size: 14px; color: var(--ink-2); }
@@ -312,7 +309,7 @@ li.cur .stn-dot { width: 32px; height: 32px; border-width: 7px; }
 .stn-main { min-width: 0; display: grid; gap: 2px; }
 .stn-name { font-size: 18px; font-weight: 700; line-height: 1.3; }
 .stn-sub { font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; column-gap: 8px; row-gap: 0; align-items: baseline; }
-.stn-no { align-self: center; font-family: var(--ui); font-weight: 700; font-size: 11.5px; line-height: 1; letter-spacing: 0.02em; padding: 3px 6px 2px; border-radius: 999px; background: var(--line); color: var(--on); }
+.stn-no { font-family: var(--ui); font-weight: 700; font-size: 12px; color: var(--s-text); letter-spacing: 0.04em; }
 .stn-bar { display: block; height: 3px; border-radius: 2px; background: var(--hair); overflow: hidden; margin-top: 4px; max-width: 220px; }
 .stn-bar i { display: block; height: 100%; width: 100%; background: var(--s-line); transform-origin: left center; transform: scaleX(var(--p)); }
 .stn-meta { display: grid; justify-items: end; gap: 2px; font-family: var(--ui); font-size: 12px; color: var(--ink-2); }
@@ -681,7 +678,7 @@ body.no-tabbar:not(:has(.sheet)) .toast { bottom: calc(96px + var(--safe-b)); }
   position: relative;
   font-family: var(--ko); font-weight: 600; line-height: 1;
   font-size: calc(var(--d) * 0.5);
-  color: #f5efe3;                    /* 米色：像紀念章裡留白的字 */
+  color: #ffffff;                    /* 白：像紀念章裡留白的字（旅ことば 2026-09-25 改白字） */
   animation: tabi-in 0.42s 0.22s var(--ease) both;
 }
 @keyframes sun-rise { from { opacity: 0; transform: translateY(6%) scale(0.82); } to { opacity: 1; transform: none; } }
