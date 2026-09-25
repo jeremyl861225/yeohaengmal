@@ -16,7 +16,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 | 旅行型態 | 城市為主（首爾、釜山），濟州島可能自駕 → 自駕主題保留但縮小（約 20 張） |
 | 主題 | 日文版 22 條改韓國版（地鐵與交通卡、汗蒸幕與澡堂、美妝保養、咖啡廳與點餐機），加烤肉與炸雞、醫美與皮膚科、韓服與拍照打卡、追星與演唱會，共 26 條（`tools/themes.py`） |
 | 字量 | 約 1200（沿用） |
-| 外觀 | 沿用旅ことば；路線改首爾地鐵風：線號圓（1 藍、2 綠、3 橘）＋三位數站號（101、201…） |
+| 外觀 | 沿用旅ことば，**配色一律照日文版**（米白底 #f7f5f0、一個家族一個顏色、下一站淡彩；2026-09-25 使用者要求）；路線改首爾地鐵風：墨色線號圓＋三位數站號（101、201…），不另加顏色 |
 | 聲音 | **待定**：試聽檔在 iCloud 雲碟「韓文聲音試聽」；韓文只有 SunHi 一個女聲，男聲 InJoon 或 Hyunsu。樣本暫用 SunHi＋InJoon |
 | 圖示 | **待定**：候選 A「여행」（Noto Serif KR 粗體，目前用這個）、B「旅行」（同日文版）、C「여」，在工作區 `icon-candidates/` |
 | 開場 | 太極的紅藍圓＋米色「旅」（日文版是日の丸紅圓）——**還沒給使用者看過** |
@@ -41,6 +41,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [x] 發音：4,800 檔、53 MB、0 失敗（SunHi＋InJoon；`YH_TTS_CONCURRENCY=12` 約 40 分鐘）
 - [x] e2e `--all-cards` 通過（1,200 張、8 種題型都出現、打到一半／初聲／漢字／拼音搜尋、離線快取）
 - [x] **2026-09-25 上線** <https://jeremyl861225.github.io/yeohaengmal/>：CORE 17 檔 200、預先快取 17 筆、斷網開卡片與搜尋、快取裡的音檔可播（Chromium 實測）
+- [x] 2026-09-25：配色照搬日文版 v10（使用者「配色規則請參考日文單字app」），快取 v3 已上線
 - [ ] 等使用者決定：圖示（A 여행 目前用這個／B 旅行／C 여，候選在工作區 `icon-candidates/` 與 iCloud「여행말 圖示候選」）、
       太極開場、男聲（InJoon 或 Hyunsu；改 Hyunsu：`make_audio.py` 的 `VOICES['m']`＋`build_data.py` 的 `VOICE_NAMES`，刪 `build/tts-manifest.json` 裡 audio/m 的紀錄重跑，升 CACHE_VERSION）
 - [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
