@@ -25,8 +25,13 @@ def _is_syl(ch):
     return 0xAC00 <= ord(ch) <= 0xD7A3
 
 
-def romanize(written, pron=None):
-    """written：寫法；pron：實際唸法（同樣的空白與標點；沒有就等於寫法）"""
+ASPIRATED = {15: 0, 16: 3, 17: 7}       # ㅋ←ㄱ+ㅎ、ㅌ←ㄷ+ㅎ、ㅍ←ㅂ+ㅎ
+FINAL_KDP = {1: 1, 2: 1, 3: 1, 9: 1, 24: 1, 7: 7, 19: 7, 20: 7, 22: 7, 23: 7, 25: 7, 17: 17, 18: 17, 14: 17, 26: 17, 11: 17}
+
+
+def romanize(written, pron=None, noun=False):
+    """written：寫法；pron：實際唸法（同樣的空白與標點；沒有就等於寫法）。
+    noun=True：名詞裡收尾音 ㄱ、ㄷ、ㅂ 後面接 ㅎ 的送氣化不標，ㅎ 照寫（닭한마리 dakhanmari、묵호 Mukho）"""
     pron = pron or written
     ws = [c for c in written if _is_syl(c)]
     ps = [c for c in pron if _is_syl(c)]
@@ -43,6 +48,12 @@ def romanize(written, pron=None):
             if PLAIN_TENSE.get(wl) == l:   # 緊音化不標
                 l = wl
             v = wv                          # 母音照寫法
+            if noun and k > 0 and wl == 18 and l in ASPIRATED and prev_final is not None:
+                wt_prev = _parts(ws[k - 1])[2]
+                if wt_prev in FINAL_KDP:
+                    # 前一個音節的收尾音改回照寫法（k／t／p），這個音節的初聲照寫 h
+                    out[-1] = out[-1][: len(out[-1]) - len(JONG[prev_final])] + JONG[FINAL_KDP[wt_prev]]
+                    l = 18
         k += 1
         ini = CHO[l]
         if l == 5 and prev_final == 8:      # ㄹㄹ → ll
@@ -60,10 +71,16 @@ if __name__ == "__main__":
              ("입국 심사는 어디에서 받아요?", "입꾹 씸사는 어디에서 바다요?", "ipguk simsaneun eodieseo badayo?"),
              ("카드로 결제하시겠어요?", "카드로 결제하시게써요?", "kadeuro gyeoljehasigesseoyo?"), ("맛있어요", "마시써요", "masisseoyo"),
              ("안녕하세요", None, "annyeonghaseyo"), ("종로", "종노", "jongno"), ("왕십리", "왕심니", "wangsimni"), ("별내", "별래", "byeollae")]
+    noun_tests = [("닭한마리", "달칸마리", "dakhanmari"), ("묵호", "무코", "mukho"), ("집현전", "지편전", "jiphyeonjeon"), ("입학", "이팍", "iphak")]
     bad = 0
     for w, p, want in tests:
         got = romanize(w, p)
         if got != want:
             bad += 1
         print(("OK " if got == want else "NG ") + w, got, "" if got == want else f"(want {want})")
+    for w, p, want in noun_tests:
+        got = romanize(w, p, noun=True)
+        if got != want:
+            bad += 1
+        print(("OK " if got == want else "NG ") + w, got, "（名詞）" if got == want else f"(want {want})")
     print("failures:", bad)

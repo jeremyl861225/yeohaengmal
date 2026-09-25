@@ -117,6 +117,15 @@ def pron_of(head, lemma, lemma_pron):
             elif core in by_w:
                 prons = {e["pron1"] for e in by_w[core] if e["pron1"]}
                 ref = prons.pop() if len(prons) == 1 else None
+            elif len(core) >= 3 and len(p) == len(core):
+                # 複合詞（여권사진）：找語節開頭最長的字典詞，用它的唸法補緊音，其餘照 g2pk
+                for n in range(len(core) - 1, 1, -1):
+                    prons = {e["pron1"] for e in by_w.get(core[:n], []) if e["pron1"]}
+                    if len(prons) == 1:
+                        head_pron = prons.pop()
+                        if len(head_pron) == n:
+                            ref = head_pron + p[n:]
+                        break
             elif lemma and lemma_pron and lemma.endswith("다") and core.startswith(lemma[:-1]) and len(lemma) > 2:
                 stem = lemma[:-1]
                 # 活用形：只在詞幹後面接的是子音開頭（不連音）時，才用字典唸法補緊音
@@ -151,13 +160,15 @@ def pick_origin(cands):
     return None
 
 
-def eojeol_marks(word, prefer=None):
+def eojeol_marks(word, prefer=None, direct=False):
     """一個語節的漢字標記（位置是語節內的字元位置）。prefer：這張卡本身的詞條（原形, 原語），先試它，對不上再查字典"""
     m = re.match(r"^([^가-힣]*)([가-힣]+)", word)
     if not m:
         return []
     lead, core = len(m.group(1)), m.group(2)
     tries = []
+    if direct and prefer and prefer[1]:
+        tries.append((core, prefer[1]))        # 單一個詞的卡：選字時直接給的原語，先和卡片自己的寫法對齊（밀면＝밀＋麵）
     if prefer and prefer[0] and prefer[1]:
         tries.append(prefer)
     cands, lem = entry_for(core)
@@ -178,12 +189,27 @@ def eojeol_marks(word, prefer=None):
     return []
 
 
-def markup(head, kind, lemma, origin):
+def markup(head, kind, lemma, origin, native=False):
+    """native：這張卡本身已知不是漢字詞（選字時把原語清成空白，或字典對到的詞沒有漢字）——
+    卡片自己那個詞不要再拿字典的同形異義字來標（안심「里肌」不能標成 安心）"""
     words = head.split(" ")
     out = []
-    for w in words:
+    stem = lemma[:-1] if lemma.endswith("다") and len(lemma) > 1 else lemma
+    segs = origin.split() if origin else []
+    per_word = kind == "w" and len(words) > 1 and len(segs) == len(words)   # 즉시 환급 ↔ 卽時 還給：逐詞對齊
+    for i, w in enumerate(words):
+        core = re.sub(r"[^가-힣]", "", w)
+        if kind == "w" and native and (len(words) == 1 or (stem and core.startswith(stem))):
+            out.append(w)
+            continue
+        if per_word and HANJA_RE.search(segs[i]):
+            mk = hanja_marks(core, segs[i])
+            if mk:
+                lead = len(re.match(r"^[^가-힣]*", w).group(0))
+                out.append(apply_marks(w, [(a + lead, b + lead, h) for a, b, h in mk]))
+                continue
         prefer = (lemma, origin) if kind == "w" else None
-        mk = eojeol_marks(w, prefer)
+        mk = eojeol_marks(w, prefer, direct=len(words) == 1)
         out.append(apply_marks(w, mk) if mk else w)
     return " ".join(out)
 
@@ -268,12 +294,14 @@ def main():
         lemma, lemma_pron = c.get("lemma", ""), c.get("lemma_pron", "")
         if a.get("head") and a["head"] != c["head"] and norm_key(a["head"]) != norm_key(lemma):
             lemma_pron = lemma_pron if head.startswith(lemma.rstrip("다")) else ""
-        w = markup(head, kind, lemma, origin)
+        native = kind == "w" and not (origin and HANJA_RE.search(origin)) and (c.get("origin_set") or bool(lemma))
+        w = markup(head, kind, lemma, origin, native)
         plain_head = re.sub(r"\{([^|{}]+)\|[^{}]+\}", r"\1", w)
         if kind == "w":
             r = pron_of(head, lemma, lemma_pron)
             spoken = re.sub(r"[^가-힣0-9 ]", "", head).strip()
-            rm = romanize(re.sub(r"[^가-힣 ]", "", head).strip(), re.sub(r"[^가-힣 ]", "", r).strip()) if re.search(r"[가-힣]", head) else head
+            noun = a.get("pos", "") in ("名詞", "依存名詞", "代名詞", "數詞", "量詞")
+            rm = romanize(re.sub(r"[^가-힣 ]", "", head).strip(), re.sub(r"[^가-힣 ]", "", r).strip(), noun=noun) if re.search(r"[가-힣]", head) else head
         else:
             r = plain_head
             spoken = re.sub(r"[^가-힣0-9 .,?!]", "", head.replace("~", "")).strip()
@@ -343,11 +371,12 @@ def main():
                  "audioBytes": dict(audio_bytes), "credits": CREDITS},
         "tiers": TIERS, "themes": themes, "families": family_list(), "units": units, "cards": cards,
     }
-    json.dump(data, open(os.path.join(ROOT, "data", "cards.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    out_path = os.environ.get("YH_DATA_OUT", os.path.join(ROOT, "data", "cards.json"))   # 試跑時可以寫到別處，不動線上的 cards.json
+    json.dump(data, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(tts, open(os.path.join(BUILD, "tts.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=0)
     json.dump(qa, open(os.path.join(BUILD, "qa.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    size = os.path.getsize(os.path.join(ROOT, "data", "cards.json"))
-    print(f"{len(cards)} 張卡、{len(units)} 課 → data/cards.json（{size / 1024:.0f} KB）")
+    size = os.path.getsize(out_path)
+    print(f"{len(cards)} 張卡、{len(units)} 課 → {out_path}（{size / 1024:.0f} KB）")
     for k, v in qa.items():
         print(f"  檢查 {k}: {len(v)}")
 
