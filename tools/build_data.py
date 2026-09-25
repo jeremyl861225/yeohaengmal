@@ -239,7 +239,7 @@ def head_in_example(head, ex, lemma):
         if a.tag.split("-")[0] == "VV" and i + 2 < len(toks) and b.tag == "EC" and toks[i + 2].tag.split("-")[0] in ("VX", "VV"):
             c = toks[i + 2]
             lemmas.add(a.form + b.form + c.form + "다")
-            lemmas.add(ex[a.start:c.start + c.len] + "다")                # 用原文的字（물어볼게요 → 물어보다；kiwi 會把詞幹還原成 묻）
+            lemmas.add(ex[a.start:b.start + b.len] + c.form + "다")      # 前兩段用原文的字（물어볼게요 → 물어＋보다；kiwi 會把詞幹還原成 묻）
     if lemma and lemma in lemmas:
         return True
     hl = entry_for(re.sub(r"[^가-힣]", "", head))[1]
