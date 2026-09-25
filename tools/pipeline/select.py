@@ -14,8 +14,12 @@ TARGET = int(os.environ.get("YH_TARGET", 1200))
 TIER_SIZES = (0.25, 0.375)          # 必備 25%、常用 37.5%、其餘進階
 UNIT_MAX, UNIT_MIN = 20, 4
 THEME_FLOOR = int(os.environ.get("YH_THEME_FLOOR", 30))
-# 2026-09-25 使用者：城市為主、濟州島可能自駕 → 自駕保留但縮小
-THEME_CAP = {"DR": 20}
+# 2026-09-25 使用者：城市為主、濟州島可能自駕 → 自駕保留但縮小。
+# 常用動詞與數字設上限：來源裡有一般學習詞表（90 Day 動詞表、國語院學習詞彙），會把一般動詞的收錄數灌高
+#（不設上限時動詞 129 張、數字 130 張；日文版動詞只有 23 張），空出的名額依頻率給旅遊專題的字
+THEME_CAP = {"DR": 20, "VB": 60, "NM": 100}
+# 旅途核心情境的保底拉高（這些主題的字多半只被一份專題來源收錄，單看頻率會被料理、追星的字擠掉）
+THEME_FLOOR_MAP = {"AP": 45, "TR": 40, "HT": 40, "RS": 40, "SH": 40, "LS": 40}
 FAMILY = {t: fam for t, (fam, _) in ASSIGN.items()}   # 太小的主題組併到同家族裡最大的一組
 
 
@@ -109,7 +113,7 @@ def main():
     # 主題保底：使用者要的主題（汗蒸幕、醫美、追星…）常只有少數專題文章收錄，單看收錄數會整批落榜；
     # 每個主題至少收 THEME_FLOOR 個（有上限的主題以上限為準），補進來的仍依頻率排在後段
     have = collections.Counter(it["theme"] for it in sel)
-    floor = {th: min(THEME_FLOOR, THEME_CAP.get(th, THEME_FLOOR)) for th in THEME_IDS}
+    floor = {th: min(THEME_FLOOR_MAP.get(th, THEME_FLOOR), THEME_CAP.get(th, 10 ** 6)) for th in THEME_IDS}
     extra = []
     for th in THEME_IDS:
         need = floor[th] - have[th]

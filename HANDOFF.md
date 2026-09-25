@@ -30,10 +30,12 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [x] 來源蒐集：69 份（zh 30、en 27、ko 12）→ 工作區 `sources/`（編號 zh/en/ko-01～19、21～39、40～49 三個代理分段）
 - [x] 正規化：5,451 個候選（`build/candidates.json`）；規則剔除 1,099（`build/curate/out-00-auto.json`：冷門菜名、廣播全文、單一來源長句）
 - [x] 指定收錄 25 個來源都沒收到的關鍵字（`build/curate/manual.json`，`force: true`：키오스크、택스 리펀드、원 플러스 원、불판、카카오 T、유심…）
-- [ ] 選字（進行中）：`build/curate/in-01…30.json` → `out-*.json`。01 完成（Opus）；**2026-09-25 11:50 撞到用量上限**，02～06 改用 Sonnet 代理接續（03 保留前 40 條）。
-      07～15（只被一份收錄的字典詞）照 RULES.md；16～30（只被一份收錄的詞組）走快速分流 TRIAGE.md → `tools/pipeline/tri2out.py`；
-      代理停擺就用 `tools/pipeline/auto_curate.py in-NN.json` 規則補完
-- [ ] 排名分課（`select.py`）→ 課名（`build/UNIT_NAMES.md`）→ 撰寫（`build/author/PROMPT.md`）→ build_data（qa 清到 0）→ 發音 → e2e → 上線
+- [x] 選字：30 批（01～15 照 RULES.md，16～30 快速分流 TRIAGE.md）＋ `manual.json`（106 條：指定收錄 25、專有地名品牌與樣板句 73 刪除、重複與漢字修正）。
+      01 用 Opus，其餘 Sonnet（11:50 撞到用量上限後改的）。
+- [x] 排名分課：1,200 張、90 課、300／450／450（`build/selection.json`、`build/ids.json`）。
+      主題上限：自駕 20、動詞 60、數字 100（一般學習詞表會灌高動詞）；保底：機場 45，地鐵、住宿、餐廳、購物、店員廣播 40，其餘 30。
+- [ ] 撰寫（進行中，Sonnet 代理）：`build/author/in-01…12.json`（各 100）→ `out-*.json`
+- [ ] 課名（`build/UNIT_NAMES.md`）→ build_data（qa 清到 0）→ 發音 → 字型子集重做 → e2e → 上線
 
 ## 工具（已改成韓文版的）
 
