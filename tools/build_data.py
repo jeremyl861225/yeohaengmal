@@ -366,6 +366,8 @@ def main():
             qa["simplified_chinese"].append([c["id"], odd, zh, card["exz"], card.get("note", "")])
         if re.search(r"[{}|]", ex) or HANJA_RE.search(ex):
             qa["ex_markup"].append([c["id"], ex])
+        if norm_key(ex) == norm_key(head):
+            qa["ex_same_as_head"].append([c["id"], head, ex])    # 例句只是把卡片原樣再寫一次：要放進情境
         if kind != "p" and not head_in_example(head, ex, lemma):
             qa["head_not_in_example"].append([c["id"], head, ex])
         if not polite(ex):
