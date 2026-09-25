@@ -299,8 +299,9 @@ function cardHTML(card, opts = {}) {
 
 // 字下方：實際唸法（寫法和唸法不同時）與羅馬拼音
 function pronOf(card) {
+  // 兩邊都去掉空白再比（물품 보관함 的唸法和寫法一樣，不要再標一次）
   const w = plain(card.w).replace(/\s/g, '');
-  return card.k !== 'p' && card.r && card.r !== w ? card.r : '';
+  return card.k !== 'p' && card.r && card.r.replace(/\s/g, '') !== w ? card.r : '';
 }
 function readHTML(card) {
   const S = store.settings;
