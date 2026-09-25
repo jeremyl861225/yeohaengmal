@@ -1,6 +1,6 @@
 // 여행말 service worker
 // 同一個 github.io origin 上還有別的 PWA：只刪自己的舊快取、只攔自己子路徑的請求。
-const CACHE_VERSION = 'yeohaengmal-v5';
+const CACHE_VERSION = 'yeohaengmal-v6';
 const AUDIO_CACHE = 'yeohaengmal-audio'; // 不帶版本號：改版不清掉已下載的發音
 const CORE = [
   './',
@@ -105,6 +105,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (req.mode === 'navigate') {
+    // 只有 App 本身（根目錄、index.html）回 App 殼；其他子頁（例如聲音試聽頁 voices/）照常上網抓，不能被攔成 App 首頁
+    if (url.pathname !== SCOPE_PATH && url.pathname !== SCOPE_PATH + 'index.html') return;
     event.respondWith(
       caches.open(CACHE_VERSION)
         .then((c) => c.match('index.html'))

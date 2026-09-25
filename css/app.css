@@ -323,15 +323,20 @@ li.cur .stn-dot { width: 32px; height: 32px; border-width: 7px; }
 .unit-head .badge .code { font-size: 15px; }
 .unit-head .badge .no { font-size: 22px; }
 .word-row .idx {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: grid; place-items: center;
-  font-family: var(--ui); font-size: 13px; font-weight: 600; color: var(--ink-3);
-  box-shadow: inset 0 0 0 1.5px var(--trunk);
+  min-width: 34px;
+  font-family: var(--ui); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+  color: var(--ink-3); opacity: 0.7;
 }
-.word-row.seen .idx { background: var(--stroke); color: var(--on, #fff); box-shadow: none; }
+.word-row.seen .idx { color: var(--stroke); opacity: 1; }   /* 看過的字：號碼換成這一課的顏色（照日文版：淡灰小字，不再圈起來） */
 
 /* ---------- 學習字卡 ---------- */
-.card { text-align: center; }
+.card { text-align: center; position: relative; padding-top: 18px; }   /* 上方留一小行給編號，長句也不會疊到上方漢字 */
+/* 單字編號：大字左上方的淡灰小字（2026-09-25 使用者指定位置，不加圓圈；寫法照日文版） */
+.card-no {
+  position: absolute; left: 2px; top: 0;
+  font-family: var(--ui); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.03em;
+  color: var(--ink-3); opacity: 0.7;
+}
 .stage.from-next { animation: slide-next 0.2s var(--ease); }
 .stage.from-prev { animation: slide-prev 0.2s var(--ease); }
 @keyframes slide-next { from { transform: translateX(26px); opacity: 0.2; } }
@@ -685,10 +690,5 @@ body.no-tabbar:not(:has(.sheet)) .toast { bottom: calc(96px + var(--safe-b)); }
 @keyframes tabi-in { from { opacity: 0; transform: translateY(10%); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #splash { display: none; } }
 
-/* 單字編號（照學習順序，0001 起）：淡淡的小灰字，不加框（2026-09-25 使用者指定：字卡上放在單字的左上角） */
-.card .sq { text-align: left; margin: 2px 2px 0; font-family: var(--ui); font-size: 12.5px; font-weight: 500; line-height: 1.2;
-  font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--n4); }
-.card .sq + .word { margin-top: 0; }
-:root[data-theme="dark"] .card .sq { color: var(--n6); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card .sq { color: var(--n6); } }
-.r-no { font-family: var(--ui); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--n4); margin-right: 8px; }
+/* 單字編號（照學習順序，0001 起；字卡頁的搜尋結果） */
+.r-no { font-family: var(--ui); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink-3); opacity: 0.7; margin-right: 8px; }

@@ -82,6 +82,10 @@ def main():
             check(has_pr == want_pr, f"{c['id']} 實際唸法顯示={has_pr}，應為 {want_pr}")
             if c.get("rm"):
                 check(pg.eval_on_selector_all(".card .read .roma", "els => els.length") == 1, f"{c['id']} 沒有顯示羅馬拼音")
+            no = pg.eval_on_selector(".card .card-no", "e => [e.textContent.trim(), e.getBoundingClientRect().bottom]")
+            check(no[0] == f"{c['sq']:04d}", f"{c['id']} 字卡左上角編號 {no[0]}，應為 {c['sq']:04d}")
+            wtop = pg.eval_on_selector(".card .word", "e => e.getBoundingClientRect().top")
+            check(no[1] <= wtop + 1, f"{c['id']} 編號疊到大字（{no[1]:.0f} > {wtop:.0f}）")
             wh = pg.eval_on_selector(".card .word", "e => e.getBoundingClientRect().height")
             fs = pg.eval_on_selector(".card .word", "e => parseFloat(getComputedStyle(e).fontSize)")
             check(wh < fs * 1.35 * 3.2, f"{c['id']} {c['w']} 單字換太多行（高 {wh:.0f}px）")
@@ -123,9 +127,14 @@ def main():
         check(x0 > 0 and abs(x1 - x0) < 40, f"點主題標籤後標籤列跳動：{x0} → {x1}")
         pg.click("[data-f-th='']")
 
-        # 測驗：第一課全部作答到終點
+        # 測驗：第一課全部作答到終點（先看課程字表的號碼是單字編號、不加圈）
         u = data["units"][0]
         pg.goto(BASE + f"#/unit/{u['id']}")
+        pg.wait_for_selector(".word-row .idx")
+        sq_of = {c["id"]: c["sq"] for c in cards}
+        idx = pg.eval_on_selector_all(".word-row .idx", "els => els.map(e => e.textContent.trim())")
+        check(idx == [f"{sq_of[i]:04d}" for i in u["cards"]], f"課程字表的號碼不是單字編號：{idx[:3]}")
+        check(pg.eval_on_selector(".word-row .idx", "e => getComputedStyle(e).borderRadius") in ("0px", ""), "課程字表的號碼還有圓圈")
         pg.click("[data-unit-quiz]")
         kinds = set()
         for i in range(len(u["cards"])):

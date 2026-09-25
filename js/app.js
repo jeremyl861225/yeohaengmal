@@ -262,8 +262,8 @@ function viewUnit(uid) {
   const list = u.cards.map((id, i) => {
     const c = BYID[id];
     return `<a class="row word-row${store.seen[id] ? ' seen' : ''}" href="#/learn/${uid}/${i}" data-autoplay>
-      <span class="idx" aria-hidden="true">${i + 1}</span>
-      <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh"><span class="r-no">${no4(c)}</span>${esc(c.zh)}</span></span>
+      <span class="idx">${no4(c)}</span>
+      <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh">${esc(c.zh)}</span></span>
       ${starBtn(id)}
     </a>`;
   }).join('');
@@ -291,7 +291,7 @@ function cardHTML(card, opts = {}) {
       ${card.note ? `<div class="note">${koIn(card.note)}</div>` : ''}
     </div>` : (card.note ? `<div class="panel"><div class="note" style="border:0;margin:0;padding:0">${koIn(card.note)}</div></div>` : '');
   return `<article class="card stage${lastDir ? ' from-' + lastDir : ''}">
-    <div class="sq" aria-label="編號 ${no4(card)}">${no4(card)}</div>
+    <span class="card-no" aria-label="編號 ${no4(card)}">${no4(card)}</span>
     <div class="word" lang="ko" style="--hw:${wordSize(w)}px">${rubyHTML(card.w)}</div>
     ${readHTML(card)}
     <p class="meaning${veil}" data-veil tabindex="0">${esc(card.zh)}</p>
