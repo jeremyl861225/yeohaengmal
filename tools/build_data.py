@@ -27,7 +27,9 @@ CREDITS = (f"發音：Microsoft 神經語音 {VOICE_NAMES[0]}（女聲）與 {VO
            "字卡以外的字：離線字典取自同一部辭典的常用詞，發音用手機內建語音。韓文字型：Noto Serif KR（SIL Open Font License 1.1）。"
            "例句與中文解釋由 AI 撰寫，經字典與規則檢查。")
 s2tw = opencc.OpenCC("s2tw")
-TW_OK = set("台只注")     # 台灣常用、OpenCC 卻會轉成「臺／隻／註」的字，不算簡體
+# 台灣常用、OpenCC s2tw 卻會改掉的字，不算簡體：台→臺、只→隻、注→註、蔘雞湯→參雞湯、里脊→裡脊、了解→瞭解
+#（撰寫代理曾為了過檢查把「蔘雞湯」改成「參雞湯」，所以白名單要和撰寫規格一致）
+TW_OK = set("台只注蔘里了")
 kiwi = Kiwi()
 entries, by_w, by_id = krdict()
 CONTENT = {"NNG", "NNP", "NP", "NR", "VV", "VA", "VX", "MAG", "XR"}
@@ -230,6 +232,14 @@ def head_in_example(head, ex, lemma):
             lemmas.add(t.form)
             if i + 1 < len(toks) and toks[i + 1].tag.startswith("XS"):
                 lemmas.add(t.form + toks[i + 1].form + "다")
+    for i in range(len(toks) - 1):
+        a, b = toks[i], toks[i + 1]
+        if b.form == "하" and b.tag.split("-")[0] in ("VV", "XSV", "XSA"):
+            lemmas.add(a.form + "하다")                                  # 잘해요 → 잘하다、못해요 → 못하다
+        if a.tag.split("-")[0] == "VV" and i + 2 < len(toks) and b.tag == "EC" and toks[i + 2].tag.split("-")[0] in ("VX", "VV"):
+            c = toks[i + 2]
+            lemmas.add(a.form + b.form + c.form + "다")
+            lemmas.add(ex[a.start:c.start + c.len] + "다")                # 用原文的字（물어볼게요 → 물어보다；kiwi 會把詞幹還原成 묻）
     if lemma and lemma in lemmas:
         return True
     hl = entry_for(re.sub(r"[^가-힣]", "", head))[1]
@@ -237,7 +247,30 @@ def head_in_example(head, ex, lemma):
         return True
     # 詞幹（예약하다 → 예약했어요）
     stem = re.sub(r"(하다|다)$", "", h)
-    return len(stem) >= 2 and stem in e
+    if len(stem) >= 2 and stem in e:
+        return True
+    if h.endswith("다") and len(h) >= 2:
+        st = h[:-1]
+        last = st[-1]
+        l, v, t = _parts(last)
+        body = st[:-1]
+        # 單音節詞幹接語尾（들다 → 들어、타다 → 타요）
+        if re.search(re.escape(st) + r"(어|아|여|었|았|을|을게|는|고|지|세|시|면|니|ㄹ)", e) or (len(st) == 1 and re.search(re.escape(st) + r"[가-힣]", e)):
+            return True
+        # ㄹ 脫落（알다 → 아세요、만들다 → 만드세요）
+        if t == 8 and re.search(re.escape(body + chr(0xAC00 + (l * 21 + v) * 28)) + r"(세|시|는|니|네|십|ㅂ)", e):
+            return True
+        # ㅂ 不規則（돕다 → 도와요、춥다 → 추워요、맵다 → 매워요）
+        if t == 17 and re.search(re.escape(body + chr(0xAC00 + (l * 21 + v) * 28)) + r"(와|워|우)", e):
+            return True
+        # ㄷ 不規則（걷다 → 걸어요、듣다 → 들어요）、르 不規則（모르다 → 몰라요）、ㅅ 不規則（낫다 → 나아요）
+        if t == 7 and re.search(re.escape(body + chr(0xAC00 + (l * 21 + v) * 28 + 8)) + r"(어|으|었)", e):
+            return True
+        if last == "르" and body and re.search(re.escape(body[:-1] + chr(ord(body[-1]) + 8) if body else "") + r"(라|러)", e):
+            return True
+        if t == 19 and re.search(re.escape(body + chr(0xAC00 + (l * 21 + v) * 28)) + r"(아|어|으)", e):
+            return True
+    return False
 
 
 POLITE_END = re.compile(r"(요|니다|니까|세요|시오|죠|네요|군요|래요|대요|까요|게요|아요|어요|해요|예요|에요)$")
@@ -318,6 +351,8 @@ def main():
         tts[c["id"]] = {"w": spoken or plain_head, "x": ex}
 
         # ---- 檢查 ----
+        if re.search(r"_{2,}|…|\.\.\.|~|\(|\)", head):
+            qa["pattern_head"].append([c["id"], head])      # 空格、刪節號、括號：語音念不好，改成具體的一句或拿掉括號
         if kind == "w" and origin and HANJA_RE.search(origin) and "{" not in w and not re.search(r"[A-Za-z]", origin):
             qa["hanja_unaligned"].append([c["id"], head, origin])
         if not zh:

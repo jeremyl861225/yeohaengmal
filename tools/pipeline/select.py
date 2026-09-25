@@ -188,6 +188,9 @@ def main():
         small = [th for th, g in groups.items() if len(g) < UNIT_MIN]
         for th in small:
             fam = [t for t in groups if t != th and FAMILY[t] == FAMILY[th] and len(groups[t]) >= UNIT_MIN]
+            if not fam:
+                # 同家族沒有別的組（店員廣播只有自己一個主題）：併進這條線的寒暄組，不要留一站只有一兩個字的課
+                fam = [t for t in groups if t != th and FAMILY[t] == "basic" and len(groups[t]) >= UNIT_MIN]
             if fam:
                 host = max(fam, key=lambda t: len(groups[t]))
                 groups[host].extend(groups.pop(th))
