@@ -42,6 +42,8 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [x] e2e `--all-cards` 通過（1,200 張、8 種題型都出現、打到一半／初聲／漢字／拼音搜尋、離線快取）
 - [x] **2026-09-25 上線** <https://jeremyl861225.github.io/yeohaengmal/>：CORE 17 檔 200、預先快取 17 筆、斷網開卡片與搜尋、快取裡的音檔可播（Chromium 實測）
 - [x] 2026-09-25：配色照搬日文版 v10（使用者「配色規則請參考日文單字app」），快取 v3 已上線
+- [x] 2026-09-25：底色改成使用者貼的色票 **#f9f9f7**（日文版仍是 #f7f5f0），快取 v4 已上線
+- [ ] 日文版 v11 新增「單字編號」（照學習順序 0001 起、搜尋框打編號找卡），韓文版還沒跟——要不要跟請使用者決定
 - [ ] 等使用者決定：圖示（A 여행 目前用這個／B 旅行／C 여，候選在工作區 `icon-candidates/` 與 iCloud「여행말 圖示候選」）、
       太極開場、男聲（InJoon 或 Hyunsu；改 Hyunsu：`make_audio.py` 的 `VOICES['m']`＋`build_data.py` 的 `VOICE_NAMES`，刪 `build/tts-manifest.json` 裡 audio/m 的紀錄重跑，升 CACHE_VERSION）
 - [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
