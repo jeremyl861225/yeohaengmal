@@ -1,95 +1,236 @@
-"""組出 App 用的 data/cards.json，並做資料檢查。
+"""組出 App 用的 data/cards.json，並做資料檢查。韓文版。
 
 輸入：workspace/build/selection.json（排名、分級、單元）、build/author/out-*.json（中文、例句）、
-      build/author/fix.json（人工修正，可無）、build/sources_meta.json
+      build/author/fix.json（人工修正，可無，格式同撰寫輸出、只寫要改的欄位）、build/sources_meta.json、build/unit_names.json
 輸出：data/cards.json、build/tts.json（朗讀文字，給 make_audio.py）、build/qa.json（檢查報告）
+
+每張卡：
+- w：韓文＋漢字標記 {공항|空港}（漢字取 KRDict 原語欄逐段對齊；句子裡只標字典裡沒有歧義的詞）
+- r：實際唸法。字典查得到的詞用 KRDict 發音欄；其他（活用形、固定說法、多個詞、外來語）用 g2pk2，
+     再用字典把 g2pk 抓不到的詞彙性緊音化補回去（여권 번호 → 여꿘 번호）。句子卡的 r 就是寫法本身（不顯示）。
+- rm：官方羅馬拼音（pipeline/rr.py：子音照唸法、母音照寫法、不標緊音化）
 """
-import json, os, re, sys, glob, datetime, collections
+import json, os, re, sys, glob, datetime, collections, subprocess
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "pipeline"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *
-from rubytools import word_ruby, plain, reading, segments, uncovered_kanji, check_sentence, tts_text, romaji_for, RUBY_RE
+from rr import romanize
 from themes import theme_list, family_list
+from kiwipiepy import Kiwi
 import opencc
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TIERS = [{"id": 1, "name": "必備"}, {"id": 2, "name": "常用"}, {"id": 3, "name": "進階"}]
-jp2t = opencc.OpenCC("jp2t")
+VOICE_NAMES = ("SunHi", "InJoon")      # 和 make_audio.py 的 VOICES 一致；換聲音時兩邊一起改
+CREDITS = (f"發音：Microsoft 神經語音 {VOICE_NAMES[0]}（女聲）與 {VOICE_NAMES[1]}（男聲），以 edge-tts 產生，僅供個人學習。"
+           "漢字與實際唸法校對：國立國語院《韓國語基礎辭典》（CC BY-SA 2.0 KR）；羅馬拼音依韓國文化體育觀光部《國語的羅馬字表記法》轉換。"
+           "字卡以外的字：離線字典取自同一部辭典的常用詞，發音用手機內建語音。韓文字型：Noto Serif KR（SIL Open Font License 1.1）。"
+           "例句與中文解釋由 AI 撰寫，經字典與規則檢查。")
 s2tw = opencc.OpenCC("s2tw")
-# 台灣常用、OpenCC 卻會轉成「臺／隻／註」的字，不算簡體
-TW_OK = set("台只注")
+TW_OK = set("台只注")     # 台灣常用、OpenCC 卻會轉成「臺／隻／註」的字，不算簡體
+kiwi = Kiwi()
+entries, by_w, by_id = krdict()
+CONTENT = {"NNG", "NNP", "NP", "NR", "VV", "VA", "VX", "MAG", "XR"}
+NATIVE_NUM = r"(?:한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|스무|스물)"
+SINO_NUM = r"(?:일|이|삼|사|오|육|칠|팔|구|십|백|천|만)"
+NATIVE_COUNTERS = r"(?:개|명|시|살|잔|병|마리|시간|장|권|벌|번째)"
+SINO_COUNTERS = r"(?:층|분|원|인분|호선|월|일|년)"
 
 
 def odd_chars(s):
-    """中文欄位裡的簡體字或日文新字體（国、学、体…）；「」『』裡引用的日文原文不算"""
+    """中文欄位裡的簡體字；「」『』裡引用的原文不算"""
     s = re.sub(r"「[^」]*」|『[^』]*』", "", s)
     return "".join(sorted({a for a, b in zip(s, s2tw.convert(s)) if a != b and a not in TW_OK}))
 
 
-def phrase_ruby(head, read):
-    """句子的標音：先用假名錨點對齊；對不上就逐詞用 Sudachi 讀音"""
-    mk = word_ruby(head, read)
-    if kata2hira(reading(mk)) == kata2hira(read) and not (mk.startswith("{") and mk.endswith("}") and len(plain(mk)) > 4):
-        return mk
+# ---------- 唸法 ----------
+G2P_CACHE = os.path.join(BUILD, "g2p_cache.json")
+_g2p = json.load(open(G2P_CACHE, encoding="utf-8")) if os.path.exists(G2P_CACHE) else {}
+
+
+def g2p_many(texts):
+    todo = [t for t in dict.fromkeys(texts) if t and t not in _g2p]
+    if todo:
+        res = subprocess.run([G2P_PY, os.path.join(os.path.dirname(os.path.abspath(__file__)), "pipeline", "g2p_batch.py")],
+                             input=json.dumps(todo, ensure_ascii=False), capture_output=True, text=True, check=True)
+        for t, p in zip(todo, json.loads(res.stdout)):
+            _g2p[t] = p
+        json.dump(_g2p, open(G2P_CACHE, "w", encoding="utf-8"), ensure_ascii=False, indent=0)
+    return {t: _g2p.get(t, t) for t in texts}
+
+
+TENSE = {0: 1, 3: 4, 7: 8, 9: 10, 12: 13}
+
+
+def _parts(ch):
+    c = ord(ch) - 0xAC00
+    return c // 588, (c % 588) // 28, c % 28
+
+
+def upgrade_tense(pron, ref):
+    """ref（字典唸法）裡是緊音、pron 同位置是平音的，改成緊音；其餘照 pron（不把 g2pk 的連讀變化改回去）"""
+    if len(pron) != len(ref):
+        return pron
     out = []
-    for t in sudachi_tokens(head):
-        s = t.surface()
-        if has_kanji(s):
-            r = kata2hira(t.reading_form())
-            out.append(word_ruby(s, r) if s != r else s)
+    for a, b in zip(pron, ref):
+        if "가" <= a <= "힣" and "가" <= b <= "힣":
+            la, va, ta = _parts(a)
+            lb, _, _ = _parts(b)
+            if TENSE.get(la) == lb:
+                a = chr(0xAC00 + (lb * 21 + va) * 28 + ta)
+        out.append(a)
+    return "".join(out)
+
+
+def entry_for(word):
+    """一個語節（去掉標點）→ 字典詞條：先查寫法，再用 kiwipiepy 還原原形；回傳 (詞條清單, 對到的形)"""
+    if word in by_w:
+        return by_w[word], word
+    toks = kiwi.tokenize(word)
+    core = [t for t in toks if t.tag.split("-")[0] in CONTENT or t.tag.startswith("XS")]
+    lem = None
+    if len(core) == 1:
+        t = core[0]
+        lem = t.form + "다" if t.tag.split("-")[0] in ("VV", "VA", "VX") else t.form
+    elif len(core) == 2 and core[0].tag.split("-")[0] in ("NNG", "NNP", "XR") and core[1].tag.startswith("XS"):
+        lem = core[0].form + core[1].form + "다"
+    if lem and lem in by_w:
+        return by_w[lem], lem
+    return [], None
+
+
+def pron_of(head, lemma, lemma_pron):
+    """單字卡的實際唸法"""
+    text = head.replace("~", "").strip()
+    if text == lemma and lemma_pron:
+        return lemma_pron
+    base = g2p_many([text])[text]
+    words = text.split(" ")
+    pw = base.split(" ")
+    if len(words) == len(pw):
+        fixed = []
+        for w, p in zip(words, pw):
+            ref = None
+            core = re.sub(r"[^가-힣]", "", w)
+            if core == lemma and lemma_pron:
+                ref = lemma_pron
+            elif core in by_w:
+                prons = {e["pron1"] for e in by_w[core] if e["pron1"]}
+                ref = prons.pop() if len(prons) == 1 else None
+            elif lemma and lemma_pron and lemma.endswith("다") and core.startswith(lemma[:-1]) and len(lemma) > 2:
+                stem = lemma[:-1]
+                # 活用形：只在詞幹後面接的是子音開頭（不連音）時，才用字典唸法補緊音
+                nxt = core[len(stem):len(stem) + 1]
+                if nxt and _parts(nxt)[0] != 11:
+                    ref = lemma_pron[:len(stem)] + p[len(stem):] if len(p) >= len(stem) else None
+            fixed.append(upgrade_tense(p, ref) if ref and re.sub(r"[^가-힣]", "", p) == p else p)
+        base = " ".join(fixed)
+    return base
+
+
+# ---------- 漢字標記 ----------
+def pick_origin(cands):
+    """同一個寫法有好幾個詞條時，挑漢字：只有一種漢字、或某個漢字詞的難度明顯最基本（역：驛 초급 vs 役 고급）才挑；
+    有同樣常用的非漢字同形詞（말：話 vs 末）或兩個一樣常用的漢字詞（차：茶／車）就不標"""
+    by_origin, native_best = {}, 0
+    for e in cands:
+        sc = LEVEL_SCORE.get(e["level"], 0)
+        o = e["origin"]
+        if o and HANJA_RE.search(o) and not re.search(r"[A-Za-z←\[]", o):
+            by_origin[o] = max(by_origin.get(o, 0), sc)
         else:
-            out.append(s)
-    mk2 = "".join(out)
-    return mk2 if kata2hira(reading(mk2)) == kata2hira(read) else mk
+            native_best = max(native_best, sc)
+    if not by_origin:
+        return None
+    ranked = sorted(by_origin.items(), key=lambda kv: -kv[1])
+    top_o, top_s = ranked[0]
+    if native_best >= 2 and top_s <= native_best:
+        return None
+    if len(ranked) == 1 or (top_s >= 2 and top_s > ranked[1][1]):
+        return top_o
+    return None
 
 
-def clean_markup(mk):
-    """拿掉標在假名上的 ruby、全形括號誤用"""
-    def fix(m):
-        base, rt = m.group(1), m.group(2)
-        if not has_kanji(base):
-            return base
-        return "{" + base + "|" + rt + "}"
-    return RUBY_RE.sub(fix, mk.replace("｛", "{").replace("｝", "}").replace("｜", "|"))
+def eojeol_marks(word, prefer=None):
+    """一個語節的漢字標記（位置是語節內的字元位置）。prefer：這張卡本身的詞條（原形, 原語），先試它，對不上再查字典"""
+    m = re.match(r"^([^가-힣]*)([가-힣]+)", word)
+    if not m:
+        return []
+    lead, core = len(m.group(1)), m.group(2)
+    tries = []
+    if prefer and prefer[0] and prefer[1]:
+        tries.append(prefer)
+    cands, lem = entry_for(core)
+    if cands:
+        o = pick_origin(cands)
+        if o:
+            tries.append((lem, o))
+    for lemma, origin in tries:
+        marks = hanja_marks(lemma, origin)
+        if not marks:
+            continue
+        common = 0
+        while common < min(len(lemma), len(core)) and lemma[common] == core[common]:
+            common += 1
+        kept = [(a + lead, b + lead, h) for a, b, h in marks if b <= common]
+        if kept:
+            return kept
+    return []
 
 
-def same_as_chinese(head, zh):
-    """日文漢字轉成繁體後幾乎就是中文意思（観光＝觀光）→ 測驗避開看字選意思"""
-    kan = "".join(c for c in plain(head) if has_kanji(c))
-    if len(kan) < 1:
-        return False
-    t = jp2t.convert(kan)
-    first = re.split(r"[；;、，,（(／/]", zh)[0]
-    return t in first or (len(t) >= 2 and sum(c in first for c in t) >= len(t) - 0)
+def markup(head, kind, lemma, origin):
+    words = head.split(" ")
+    out = []
+    for w in words:
+        prefer = (lemma, origin) if kind == "w" else None
+        mk = eojeol_marks(w, prefer)
+        out.append(apply_marks(w, mk) if mk else w)
+    return " ".join(out)
 
 
-def word_tts(head, read, kind, markup):
-    if kind == "p":
-        return tts_text(markup)
-    if not has_kanji(head):
-        return head
-    toks = list(sudachi_tokens(head))
-    sud = "".join(kata2hira(t.reading_form()) for t in toks)
-    return head if sud == kata2hira(read) else read
-
-
-def head_in_example(head, ex):
-    """例句裡有沒有用到這個字（動詞形容詞可活用）"""
-    p = plain(ex)
-    h = head.replace("〜", "").replace("～", "")
-    if h in p:
+# ---------- 檢查 ----------
+def head_in_example(head, ex, lemma):
+    h = norm_key(head.replace("~", ""))
+    e = norm_key(ex)
+    if h and h in e:
         return True
-    # 〇 是填數字的空格（バス〇分 → バス5分）
-    if "〇" in h and re.search(re.escape(h).replace("〇", "[0-9０-９一二三四五六七八九十百〇何]+"), p):
+    lemmas = set()
+    toks = kiwi.tokenize(ex)
+    for i, t in enumerate(toks):
+        tag = t.tag.split("-")[0]
+        if tag in ("VV", "VA", "VX"):
+            lemmas.add(t.form + "다")
+        elif tag in ("NNG", "NNP", "NR", "NP", "MAG", "XR"):
+            lemmas.add(t.form)
+            if i + 1 < len(toks) and toks[i + 1].tag.startswith("XS"):
+                lemmas.add(t.form + toks[i + 1].form + "다")
+    if lemma and lemma in lemmas:
         return True
-    # 美化語的「お／ご」可省略（お弁当 → 弁当）
-    if h[:1] in "おご" and len(h) > 2 and h[1:] in p:
+    hl = entry_for(re.sub(r"[^가-힣]", "", head))[1]
+    if hl and hl in lemmas:
         return True
-    lemmas = {t.dictionary_form() for t in sudachi_tokens(p)} | {t.normalized_form() for t in sudachi_tokens(p)}
-    if h in lemmas:
+    # 詞幹（예약하다 → 예약했어요）
+    stem = re.sub(r"(하다|다)$", "", h)
+    return len(stem) >= 2 and stem in e
+
+
+POLITE_END = re.compile(r"(요|니다|니까|세요|시오|죠|네요|군요|래요|대요|까요|게요|아요|어요|해요|예요|에요)$")
+
+
+def polite(ex):
+    t = re.sub(r"[.?!。！？…~\s]+$", "", ex)
+    if POLITE_END.search(t):
         return True
-    # 漢字詞幹（乗り換え→乗り換えます、乗換）
-    stem = re.sub(r"[ぁ-ん]+$", "", h)
-    return bool(stem) and len(stem) >= 1 and stem in p and has_kanji(stem)
+    last = t.split(" ")[-1] if t else ""
+    return last in ("네", "예", "아니요", "아뇨", "감사합니다", "고맙습니다", "안녕하세요")
+
+
+def counter_problems(text):
+    bad = []
+    bad += re.findall(rf"\b{SINO_NUM}\s?{NATIVE_COUNTERS}(?![가-힣])", text)
+    bad += re.findall(rf"(?<![가-힣]){NATIVE_NUM}\s?{SINO_COUNTERS}(?![가-힣])", text)
+    bad += re.findall(rf"[0-9]+\s?{NATIVE_COUNTERS}(?![가-힣])", text)     # 固有語量詞前寫阿拉伯數字：語音會唸成漢字語數字
+    return bad
 
 
 def main():
@@ -102,50 +243,55 @@ def main():
     if os.path.exists(fixp):
         for d in json.load(open(fixp, encoding="utf-8")):
             authored.setdefault(d["id"], {}).update(d)
-    # 逐張確認過的讀音誤報（分析器唸錯、卡片是對的）：[卡片編號, 漢字, 標的讀音]
-    okp = os.path.join(BUILD, "author", "reading_ok.json")
-    reading_ok = {tuple(x) for x in json.load(open(okp, encoding="utf-8"))} if os.path.exists(okp) else set()
     themes = theme_list()
     tname = {t["id"]: t["name"] for t in themes}
 
     qa = collections.defaultdict(list)
-    cards, tts = [], {}
-    dropped = set()
+    cards, tts, dropped = [], {}, set()
+    rows = []
     for c in sel["cards"]:
         a = authored.get(c["id"], {})
-        head, read, kind = c["head"], c["reading"], c["kind"]
-        # 撰寫代理判定不該收的卡：先拿掉（要遞補就把它的 keys 寫進 curate/manual.json 再跑 select）
         if a.get("drop"):
-            qa["dropped"].append([c["id"], head, a.get("why", ""), c.get("keys", [])])
+            qa["dropped"].append([c["id"], c["head"], a.get("why", ""), c.get("keys", [])])
             dropped.add(c["id"])
             continue
-        # 選字階段的 kind 會標錯（店員問句標成 w、「3番」標成 p），以撰寫代理的詞性為準
+        head = re.sub(r"\s+", " ", (a.get("head") or c["head"]).strip())
+        kind = c["kind"]
         if a.get("pos"):
             kind = "p" if a["pos"] == "句子" else "w"
-        if a.get("head"):
-            head = a["head"]
-        if a.get("reading"):
-            read = a["reading"]
-        w = phrase_ruby(head, read) if kind == "p" else word_ruby(head, read)
-        if kata2hira(reading(w)) != kata2hira(read):
-            qa["head_ruby_mismatch"].append([c["id"], head, read, w])
-        ex = clean_markup(a.get("ex", "").strip())
+        origin = a["origin"] if "origin" in a else c.get("origin", "")
+        rows.append((c, a, head, kind, origin))
+    # 一次跑完 g2p（句子與不在字典裡的詞）
+    g2p_many([h.replace("~", "").strip() for _, _, h, _, _ in rows] + [re.sub(r"[^가-힣0-9 ]", "", h).strip() for _, _, h, _, _ in rows])
+
+    for c, a, head, kind, origin in rows:
+        lemma, lemma_pron = c.get("lemma", ""), c.get("lemma_pron", "")
+        if a.get("head") and a["head"] != c["head"] and norm_key(a["head"]) != norm_key(lemma):
+            lemma_pron = lemma_pron if head.startswith(lemma.rstrip("다")) else ""
+        w = markup(head, kind, lemma, origin)
+        plain_head = re.sub(r"\{([^|{}]+)\|[^{}]+\}", r"\1", w)
+        if kind == "w":
+            r = pron_of(head, lemma, lemma_pron)
+            spoken = re.sub(r"[^가-힣0-9 ]", "", head).strip()
+            rm = romanize(re.sub(r"[^가-힣 ]", "", head).strip(), re.sub(r"[^가-힣 ]", "", r).strip()) if re.search(r"[가-힣]", head) else head
+        else:
+            r = plain_head
+            spoken = re.sub(r"[^가-힣0-9 .,?!]", "", head.replace("~", "")).strip()
+            p = _g2p.get(re.sub(r"[^가-힣0-9 ]", "", head).strip(), "")
+            rm = romanize(re.sub(r"[^가-힣 ?.!,]", "", head).strip(), re.sub(r"[^가-힣 ?.!,]", "", p).strip() if p else None)
+        ex = a.get("ex", "").strip()
         zh = a.get("zh", "").strip()
-        card = {
-            "id": c["id"], "w": w, "r": read, "zh": zh, "pos": a.get("pos", ""),
-            "th": c["theme"], "t": c["tier"], "rank": c["rank"], "n": c["n"], "no": c["no"],
-            "ex": ex, "exz": a.get("exz", "").strip(), "note": a.get("note", "").strip(), "k": kind,
-        }
-        verb_u = card["pos"].startswith("動詞")
-        card["rm"] = romaji_for(head, read, kind, ("v5u",) if verb_u else ())
-        if same_as_chinese(head, zh):
-            card["sm"] = 1
+        card = {"id": c["id"], "w": w, "r": r, "rm": rm, "zh": zh, "pos": a.get("pos", ""),
+                "th": c["theme"], "t": c["tier"], "rank": c["rank"], "n": c["n"], "no": c["no"],
+                "ex": ex, "exz": a.get("exz", "").strip(), "note": a.get("note", "").strip(), "k": kind}
         if not card["note"]:
             del card["note"]
         cards.append(card)
-        tts[c["id"]] = {"w": word_tts(head, read, kind, w), "x": tts_text(ex) if ex else ""}
+        tts[c["id"]] = {"w": spoken or plain_head, "x": ex}
 
         # ---- 檢查 ----
+        if kind == "w" and origin and HANJA_RE.search(origin) and "{" not in w and not re.search(r"[A-Za-z]", origin):
+            qa["hanja_unaligned"].append([c["id"], head, origin])
         if not zh:
             qa["missing_zh"].append(c["id"])
         if not ex:
@@ -154,19 +300,19 @@ def main():
         odd = odd_chars(zh + card["exz"] + card.get("note", ""))
         if odd:
             qa["simplified_chinese"].append([c["id"], odd, zh, card["exz"], card.get("note", "")])
-        un = uncovered_kanji(ex)
-        if un:
-            qa["uncovered_kanji"].append([c["id"], ex, "".join(un)])
-        bad = [b for b in check_sentence(ex) if (c["id"], b[0], b[1]) not in reading_ok]
-        if bad:
-            qa["reading_mismatch"].append([c["id"], ex, [list(b) for b in bad]])
-        if kind != "p" and not head_in_example(head, ex):
-            qa["head_not_in_example"].append([c["id"], head, plain(ex)])
-        if len(plain(ex)) > 40:
-            qa["long_example"].append([c["id"], plain(ex)])
+        if re.search(r"[{}|]", ex) or HANJA_RE.search(ex):
+            qa["ex_markup"].append([c["id"], ex])
+        if kind != "p" and not head_in_example(head, ex, lemma):
+            qa["head_not_in_example"].append([c["id"], head, ex])
+        if not polite(ex):
+            qa["register"].append([c["id"], ex])
+        cp = counter_problems(ex) + (counter_problems(head) if kind == "w" else [])
+        if cp:
+            qa["counter"].append([c["id"], head, ex, cp])
+        if len(ex) > 40:
+            qa["long_example"].append([c["id"], ex])
 
     # 課名：build/unit_names.json（每課的子題名稱，全 App 不重複）；沒有的話退回「主題＋編號」
-    #（2026-09-25 使用者反映「寒暄與應答 1、2」在三條線重複出現）。select 重跑、課的組成變了要重新命名。
     np_ = os.path.join(BUILD, "unit_names.json")
     names = json.load(open(np_, encoding="utf-8")) if os.path.exists(np_) else {}
     units = []
@@ -183,26 +329,24 @@ def main():
     if dup:
         qa["unit_title_duplicate"] = dup
 
-    # 來源清單與音檔大小
     srcs = json.load(open(os.path.join(BUILD, "sources_meta.json"), encoding="utf-8"))
     audio_bytes = collections.Counter()
     for card in cards:
-        for v in ("n", "k"):
+        for v in ("f", "m"):
             for suf in ("", "x"):
-                p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "audio", v, f"{card['id']}{suf}.mp3")
+                p = os.path.join(ROOT, "audio", v, f"{card['id']}{suf}.mp3")
                 if os.path.exists(p):
                     audio_bytes[str(card["t"])] += os.path.getsize(p)
     data = {
         "meta": {"version": datetime.date.today().isoformat(), "count": len(cards),
                  "sources": [{"id": s["id"], "title": s["title"], "url": s["url"], "lang": s["lang"]} for s in srcs],
-                 "audioBytes": dict(audio_bytes)},
+                 "audioBytes": dict(audio_bytes), "credits": CREDITS},
         "tiers": TIERS, "themes": themes, "families": family_list(), "units": units, "cards": cards,
     }
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json.dump(data, open(os.path.join(root, "data", "cards.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    json.dump(data, open(os.path.join(ROOT, "data", "cards.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(tts, open(os.path.join(BUILD, "tts.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=0)
     json.dump(qa, open(os.path.join(BUILD, "qa.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    size = os.path.getsize(os.path.join(root, "data", "cards.json"))
+    size = os.path.getsize(os.path.join(ROOT, "data", "cards.json"))
     print(f"{len(cards)} 張卡、{len(units)} 課 → data/cards.json（{size / 1024:.0f} KB）")
     for k, v in qa.items():
         print(f"  檢查 {k}: {len(v)}")

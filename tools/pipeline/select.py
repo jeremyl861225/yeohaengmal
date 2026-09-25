@@ -1,29 +1,22 @@
-"""選字：候選詞條＋選字決定 → 依旅遊實用頻率排名、分級、分主題、切單元。
+"""選字：候選詞條＋選字決定 → 依旅遊實用頻率排名、分級、分主題、切單元。韓文版。
 
 輸入：build/candidates.json、build/curate/out-*.json（代理的去留決定）、build/curate/manual.json（人工覆寫，可無）
-輸出：build/selection.json（排名後的 1200 張卡骨架）、build/ids.json（卡片編號登記，讓編號跨版本穩定）
+輸出：build/selection.json（排名後的卡片骨架）、build/ids.json（卡片編號登記，讓編號跨版本穩定；**不要刪**）
 """
 import json, glob, os, re, sys, math, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import *
-from themes import THEME_IDS
+from themes import THEME_IDS, ASSIGN
 from wordfreq import zipf_frequency
 
-TARGET = int(os.environ.get("TK_TARGET", 1200))
+TARGET = int(os.environ.get("YH_TARGET", 1200))
 TIER_SIZES = (0.25, 0.375)          # 必備 25%、常用 37.5%、其餘進階
 UNIT_MAX, UNIT_MIN = 20, 4
-THEME_FLOOR = int(os.environ.get("TK_THEME_FLOOR", 30))
-FAMILY = {  # 太小的主題組併到同家族裡最大的一組
-    "GR": "basic", "VB": "basic", "NM": "basic",
-    "AP": "move", "TR": "move", "BT": "move", "DR": "move", "DI": "move",
-    "HT": "stay", "ON": "stay",
-    "RS": "food", "FD": "food", "DK": "food",
-    "SH": "shop", "CV": "shop", "DS": "shop",
-    "MD": "care", "EM": "care",
-    "SG": "city", "SN": "city", "SV": "city",
-    "LS": "listen",
-}
+THEME_FLOOR = int(os.environ.get("YH_THEME_FLOOR", 30))
+# 2026-09-25 使用者：城市為主、濟州島可能自駕 → 自駕保留但縮小
+THEME_CAP = {"DR": 20}
+FAMILY = {t: fam for t, (fam, _) in ASSIGN.items()}   # 太小的主題組併到同家族裡最大的一組
 
 
 def load_decisions():
@@ -38,6 +31,10 @@ def load_decisions():
     return dec
 
 
+def sort_key(it):
+    return (-it["n"], -it["zipf"], it["head"])
+
+
 def main():
     cands = {c["key"]: c for c in json.load(open(os.path.join(BUILD, "candidates.json"), encoding="utf-8"))}
     dec = load_decisions()
@@ -45,11 +42,10 @@ def main():
     if missing:
         print(f"注意：{len(missing)} 個詞條還沒有選字決定（例：{missing[:5]}）")
 
-    items = {}
-    merges = []
+    items, merges = {}, []
     for key, d in dec.items():
         if key not in cands:
-            if d.get("keep") and d.get("added"):   # 人工補的詞：來源段落有整組列出、但抽取只抓到部分（例如日期 1～10 日）
+            if d.get("keep") and d.get("added"):   # 人工補的詞（來源段落有整組列出、但抽取只抓到部分）
                 cands[key] = {"key": key, "n": len(d.get("sources", [])), "sources": d.get("sources", []), "meanings": d.get("meanings", {}), "gloss": []}
             else:
                 continue
@@ -58,9 +54,12 @@ def main():
             if th not in THEME_IDS:
                 print("主題代碼錯誤", key, th)
                 continue
-            items[key] = {"key": key, "head": d["head"].strip(), "reading": d["reading"].strip(), "kind": d.get("kind", "w"),
-                          "theme": th, "sources": set(cands[key]["sources"]), "fix": d.get("fix", ""),
-                          "meanings": cands[key].get("meanings", {}), "gloss": cands[key].get("gloss", []), "keys": [key]}
+            c = cands[key]
+            items[key] = {"key": key, "head": re.sub(r"\s+", " ", d["head"].strip()), "kind": d.get("kind", "w"), "theme": th,
+                          "origin": d["origin"] if "origin" in d else c.get("origin", ""), "origin_set": "origin" in d,
+                          "lemma": c.get("lemma", ""), "lemma_pron": c.get("lemma_pron", ""), "pos_kd": c.get("pos", ""),
+                          "sources": set(c["sources"]), "fix": d.get("fix", ""),
+                          "meanings": c.get("meanings", {}), "gloss": c.get("gloss", []), "keys": [key]}
         else:
             m = re.search(r"併入\s*([wp]:\S+)", d.get("why", ""))
             if m:
@@ -70,13 +69,12 @@ def main():
             items[tgt]["sources"] |= set(cands[src]["sources"])
             items[tgt]["keys"].append(src)
             for lang, v in cands[src].get("meanings", {}).items():
-                items[tgt]["meanings"].setdefault(lang, [])
-                items[tgt]["meanings"][lang] = list(dict.fromkeys(items[tgt]["meanings"][lang] + v))[:6]
+                items[tgt]["meanings"][lang] = list(dict.fromkeys(items[tgt]["meanings"].get(lang, []) + v))[:6]
 
-    # 同寫法同讀音去重（不同分段的代理各自保留的）
+    # 同寫法去重（不同批次的代理各自保留的）
     by_form = {}
     for it in items.values():
-        fk = (it["head"], kata2hira(it["reading"]))
+        fk = norm_key(it["head"]) + "|" + it["origin"]
         if fk in by_form:
             a = by_form[fk]
             a["sources"] |= it["sources"]
@@ -88,31 +86,46 @@ def main():
     pool = list(by_form.values())
     for it in pool:
         it["n"] = len(it["sources"])
-        it["zipf"] = zipf_frequency(it["head"].replace("〜", ""), "ja")
-    pool.sort(key=lambda it: (-it["n"], -it["zipf"], it["reading"]))
+        it["zipf"] = zipf_frequency(it["head"].replace("~", "").strip(), "ko")
+    pool.sort(key=sort_key)
     print(f"保留 {len(pool)} 個（去重後），目標 {TARGET}")
-    sel = pool[:TARGET]
-    # 主題保底：使用者指定要的主題（自駕、溫泉、藥妝…）常只有少數專題文章收錄，
-    # 單看收錄數會整批落榜；每個主題至少收 THEME_FLOOR 個（不足就全收），補進來的仍依頻率排在後段
+
+    # 主題上限：超過的從該主題後段拿掉，空出的名額由其他主題依頻率遞補
+    sel, cnt = [], collections.Counter()
+    for it in pool:
+        cap = THEME_CAP.get(it["theme"])
+        if cap and cnt[it["theme"]] >= cap:
+            continue
+        sel.append(it)
+        cnt[it["theme"]] += 1
+        if len(sel) >= TARGET:
+            break
+    rest = [it for it in pool if it not in sel]
+    # 主題保底：使用者要的主題（汗蒸幕、醫美、追星…）常只有少數專題文章收錄，單看收錄數會整批落榜；
+    # 每個主題至少收 THEME_FLOOR 個（有上限的主題以上限為準），補進來的仍依頻率排在後段
     have = collections.Counter(it["theme"] for it in sel)
+    floor = {th: min(THEME_FLOOR, THEME_CAP.get(th, THEME_FLOOR)) for th in THEME_IDS}
     extra = []
     for th in THEME_IDS:
-        need = THEME_FLOOR - have[th]
+        need = floor[th] - have[th]
         if need > 0:
-            more = [it for it in pool[TARGET:] if it["theme"] == th][:need]
+            more = [it for it in rest if it["theme"] == th][:need]
             extra += more
             have[th] += len(more)
     if extra:
-        drop, i = [], len(sel) - 1
+        drop, i = set(), len(sel) - 1
         while len(drop) < len(extra) and i >= 0:
             th = sel[i]["theme"]
-            if have[th] > THEME_FLOOR:
-                drop.append(i)
+            if have[th] > floor[th]:
+                drop.add(i)
                 have[th] -= 1
             i -= 1
-        sel = [it for k, it in enumerate(sel) if k not in set(drop)] + extra
-        sel.sort(key=lambda it: (-it["n"], -it["zipf"], it["reading"]))
+        sel = [it for k, it in enumerate(sel) if k not in drop] + extra
+        sel.sort(key=sort_key)
         print(f"主題保底補入 {len(extra)} 個：", collections.Counter(it["theme"] for it in extra).most_common())
+    short = {th: have[th] for th in THEME_IDS if have[th] < floor[th]}
+    if short:
+        print("保底仍不足的主題（候選不夠，要補來源）：", short)
     dist = collections.Counter(it["n"] for it in sel)
     print("入選的收錄數分佈:", sorted(dist.items(), reverse=True))
 
@@ -123,12 +136,12 @@ def main():
         it["rank"] = i + 1
         it["tier"] = 1 if i < n1 else 2 if i < n2 else 3
 
-    # 編號登記（跨版本穩定）
+    # 編號登記（跨版本穩定：音檔檔名、使用者的星號都掛在編號上）
     ids_path = os.path.join(BUILD, "ids.json")
     ids = json.load(open(ids_path)) if os.path.exists(ids_path) else {}
     nxt = max([int(v) for v in ids.values()] + [0]) + 1
     for it in sel:
-        fk = f"{it['head']}|{kata2hira(it['reading'])}"
+        fk = f"{norm_key(it['head'])}|{it['origin']}"
         if fk not in ids:
             ids[fk] = f"{nxt:04d}"
             nxt += 1
@@ -141,7 +154,7 @@ def main():
         cnt[it["theme"]] += 1
         it["no"] = cnt[it["theme"]]
 
-    # 單元：級內依主題分組，主題依該組最高排名排序；過大切段、過小併入同家族最大組
+    # 單元：級內依主題分組；過大切段、過小併入同家族最大組；課的順序依整組平均排名
     units = []
     for tier in (1, 2, 3):
         groups = collections.OrderedDict()
@@ -155,7 +168,6 @@ def main():
                 host = max(fam, key=lambda t: len(groups[t]))
                 groups[host].extend(groups.pop(th))
                 groups[host].sort(key=lambda it: it["rank"])
-        # 課的順序：整組的平均排名（比單看第一名穩定，必備線才不會從招牌開始）
         order = sorted(groups.items(), key=lambda kv: sum(x["rank"] for x in kv[1]) / len(kv[1]))
         for th, g in order:
             k = math.ceil(len(g) / UNIT_MAX)
@@ -173,7 +185,6 @@ def main():
     tiers = collections.Counter(it["tier"] for it in sel)
     print("分級:", dict(tiers), " 單元數:", len(units))
     print("主題分佈:", collections.Counter(it["theme"] for it in sel).most_common())
-    print("各級單元大小:", [(u["id"], len(u["cards"])) for u in units][:80])
 
 
 if __name__ == "__main__":

@@ -1,13 +1,13 @@
 """端對端驗收（手機視窗）：用 Playwright 實際操作 App。
 
-用法：~/.claude/tools/playwright-venv/bin/python tools/e2e.py [http://127.0.0.1:8731/] [--all-cards]
-先在 repo 根目錄開本機伺服器：python3 -m http.server 8731 --bind 127.0.0.1
+用法：~/.claude/tools/playwright-venv/bin/python tools/e2e.py [http://127.0.0.1:8741/] [--all-cards]
+先在 repo 根目錄開本機伺服器：python3 -m http.server 8741 --bind 127.0.0.1（8731 是日文版用的）
 """
-import json, os, sys, time
+import json, os, re, sys, time
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BASE = next((a for a in sys.argv[1:] if a.startswith("http")), "http://127.0.0.1:8731/")
+BASE = next((a for a in sys.argv[1:] if a.startswith("http")), "http://127.0.0.1:8741/")
 ALL = "--all-cards" in sys.argv
 data = json.load(open(os.path.join(ROOT, "data", "cards.json"), encoding="utf-8"))
 cards = data["cards"]
@@ -22,7 +22,7 @@ def check(cond, msg):
 
 def main():
     # 音檔齊全（檔案系統）
-    missing = [f"{v}/{c['id']}{s}" for c in cards for v in ("n", "k") for s in ("", "x")
+    missing = [f"{v}/{c['id']}{s}" for c in cards for v in ("f", "m") for s in ("", "x")
                if (s == "" or c.get("ex")) and not os.path.exists(os.path.join(ROOT, "audio", v, f"{c['id']}{s}.mp3"))]
     check(not missing, f"缺音檔 {len(missing)} 個：{missing[:6]}")
 
@@ -66,7 +66,7 @@ def main():
         pg.wait_for_timeout(120)
         check(pg.eval_on_selector("details.tier", "e => e.open") != was, "點線的標題列沒有收合／展開")
 
-        # 每張卡：沒有橫向溢出、假名數量正確
+        # 每張卡：沒有橫向溢出、上方漢字數量正確、實際唸法與羅馬拼音有顯示
         sample = cards if ALL else cards[:: max(1, len(cards) // 120)]
         t0 = time.time()
         for c in sample:
@@ -75,21 +75,28 @@ def main():
             over = pg.evaluate("document.scrollingElement.scrollWidth - window.innerWidth")
             check(over <= 1, f"{c['id']} {c['w']} 橫向溢出 {over}px")
             n_rt = pg.eval_on_selector_all(".card .word rt", "els => els.length")
-            check(n_rt == c["w"].count("{"), f"{c['id']} 單字假名數 {n_rt} ≠ {c['w'].count('{')}")
-            if c.get("ex"):
-                n_rt2 = pg.eval_on_selector_all(".ex-ja rt", "els => els.length")
-                check(n_rt2 == c["ex"].count("{"), f"{c['id']} 例句假名數 {n_rt2} ≠ {c['ex'].count('{')}")
+            check(n_rt == c["w"].count("{"), f"{c['id']} 上方漢字數 {n_rt} ≠ {c['w'].count('{')}")
+            plain_w = re.sub(r"\{([^|{}]+)\|[^{}]+\}", r"\1", c["w"]).replace(" ", "")
+            want_pr = c["k"] != "p" and c["r"].replace(" ", "") != plain_w
+            has_pr = pg.eval_on_selector_all(".card .read .pr", "els => els.length") > 0
+            check(has_pr == want_pr, f"{c['id']} 實際唸法顯示={has_pr}，應為 {want_pr}")
+            if c.get("rm"):
+                check(pg.eval_on_selector_all(".card .read .roma", "els => els.length") == 1, f"{c['id']} 沒有顯示羅馬拼音")
             wh = pg.eval_on_selector(".card .word", "e => e.getBoundingClientRect().height")
             fs = pg.eval_on_selector(".card .word", "e => parseFloat(getComputedStyle(e).fontSize)")
             check(wh < fs * 1.35 * 3.2, f"{c['id']} {c['w']} 單字換太多行（高 {wh:.0f}px）")
         print(f"字卡檢查 {len(sample)} 張，{time.time() - t0:.1f}s")
 
-        # 搜尋：漢字、假名、羅馬拼音、中文
-        target = next((c for c in cards if "{" in c["w"] and c.get("rm")), cards[0])
+        # 搜尋：韓文、打到一半的韓文（最後一個音節只打初聲）、初聲、上方漢字、羅馬拼音、中文
+        target = next((c for c in cards if "{" in c["w"] and c.get("rm") and c["k"] != "p" and len(re.sub(r"[^가-힣]", "", c["w"])) >= 2), cards[0])
         pg.goto(BASE + "#/browse")
         pg.wait_for_selector("#q")
-        head = "".join(ch for ch in target["w"] if ch not in "{}|")
-        for q in (target["r"], target["rm"], target["zh"].split("；")[0].split("、")[0]):
+        head = re.sub(r"[^가-힣]", "", re.sub(r"\{([^|{}]+)\|[^{}]+\}", r"\1", target["w"]))
+        CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+        cho = lambda ch: CHO[(ord(ch) - 0xAC00) // 588]
+        hanja = "".join(re.findall(r"\|([^{}]+)\}", target["w"]))
+        partial = head[:-1] + cho(head[-1])
+        for q in (head, partial, "".join(cho(ch) for ch in head), hanja, target["rm"], target["zh"].split("；")[0].split("、")[0]):
             pg.fill("#q", q)
             pg.wait_for_timeout(150)
             ids = pg.eval_on_selector_all(".row", "els => els.map(e => e.getAttribute('href'))")
@@ -135,13 +142,13 @@ def main():
         badge = pg.inner_text(".tab[data-tab='starred'] .badge-n")
         check(badge.strip() != "" and badge.strip() != "0", "分頁上的不熟數字沒更新")
 
-        # 設定：隱藏假名
+        # 設定：關掉漢字標註
         pg.goto(BASE + "#/settings")
-        pg.click("[data-set='furigana'][data-val='none']")
+        pg.click("[data-set-bool='hanja']")
         pg.goto(BASE + f"#/card/{target['id']}")
         pg.wait_for_selector(".card .word rt", state="attached")
         vis = pg.eval_on_selector(".card .word rt", "e => getComputedStyle(e).visibility")
-        check(vis == "hidden", "設定隱藏假名後仍看得到假名")
+        check(vis == "hidden", "設定關掉漢字標註後仍看得到漢字")
         check(not errs, f"頁面錯誤：{errs[:3]}")
         ctx.close()
 
@@ -150,7 +157,7 @@ def main():
         pg2 = ctx2.new_page()
         pg2.goto(BASE)
         pg2.wait_for_selector(".next")
-        count_js = "caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('tabi-kotoba-v')).map(k => caches.open(k).then(c => c.keys().then(r => r.length))))).then(a => a.reduce((x, y) => x + y, 0))"
+        count_js = "caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('yeohaengmal-v')).map(k => caches.open(k).then(c => c.keys().then(r => r.length))))).then(a => a.reduce((x, y) => x + y, 0))"
         n_cached = 0
         for _ in range(20):  # 等 SW 安裝完成、預先快取寫入
             pg2.wait_for_timeout(500)
