@@ -32,7 +32,7 @@ def main():
         sctx = b.new_context(viewport={"width": 375, "height": 740}, is_mobile=True, has_touch=True, service_workers="block")
         sp = sctx.new_page()
         sp.goto(BASE, wait_until="commit")
-        sp.wait_for_selector("#splash .sun", state="attached")
+        sp.wait_for_selector("#splash .splash-tile", state="attached")
         sp.wait_for_function("!document.getElementById('splash')", timeout=4000)
         sp.goto(BASE + "?reload=1#/browse", wait_until="commit")  # 只換 # 後面不會重新載入，開場不會再出現
         sp.wait_for_selector("#splash", state="attached")
@@ -132,14 +132,14 @@ def main():
         pg.goto(BASE + f"#/unit/{u['id']}")
         pg.wait_for_selector(".word-row .idx")
         sq_of = {c["id"]: c["sq"] for c in cards}
-        idx = pg.eval_on_selector_all(".word-row .idx", "els => els.map(e => e.textContent.trim())")
+        idx = pg.eval_on_selector_all(".word-row .idx", "els => els.map(e => e.firstChild.textContent.trim())")   # 只讀號碼（後面可能有「目前」標記）
         check(idx == [f"{sq_of[i]:04d}" for i in u["cards"]], f"課程字表的號碼不是單字編號：{idx[:3]}")
         check(pg.eval_on_selector(".word-row .idx", "e => getComputedStyle(e).borderRadius") in ("0px", ""), "課程字表的號碼還有圓圈")
         pg.click("[data-unit-quiz]")
         kinds = set()
         for i in range(len(u["cards"])):
             pg.wait_for_selector("[data-choice], [data-tile]")
-            kinds.add(pg.inner_text(".q-kind"))
+            kinds.add(pg.get_attribute(".stage[data-qtype]", "data-qtype"))   # 題型標籤（q-kind）2026-10-02 拿掉了，改讀屬性
             if pg.query_selector("[data-tile]"):
                 # 拼音題：依序點方塊直到填滿（不管對錯），確認會自動判分
                 while pg.query_selector(".bank [data-tile]:not([disabled])") and not pg.query_selector("[data-quiz-next]"):
@@ -151,6 +151,18 @@ def main():
         check(len(kinds) >= min(4, len(u["cards"])), f"單元測驗題型太少：{kinds}")
         pg.wait_for_selector(".score")
         check("/" in pg.inner_text(".score"), "測驗沒有到終點")
+
+        # 分頁列：玻璃珠停在目前分頁的正上方，底板凹口跟著它（旅ことば 2026-09-29 的做法，2026-10-02 照搬）
+        pg.goto(BASE + "#/")
+        pg.wait_for_selector(".next")
+        for tab in ("quiz", "settings", "home"):
+            pg.click(f".tab[data-tab='{tab}']")
+            pg.wait_for_timeout(80)
+            dx = pg.evaluate(f"""(() => {{ const b = document.querySelector('.tb-ball').getBoundingClientRect();
+                const t = document.querySelector(".tab[data-tab='{tab}'] svg").getBoundingClientRect();
+                return Math.abs((b.left + b.width / 2) - (t.left + t.width / 2)) + Math.abs((b.top + b.height / 2) - (t.top + t.height / 2)); }})()""")
+            check(dx < 3, f"分頁列的球沒有停在「{tab}」上（差 {dx:.1f}px）")
+            check(pg.get_attribute(f".tab[data-tab='{tab}']", "aria-current") == "page", f"分頁「{tab}」沒有標成目前")
 
         # 星號與不熟清單
         pg.goto(BASE + f"#/card/{cards[1]['id']}")

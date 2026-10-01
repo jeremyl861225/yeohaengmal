@@ -16,10 +16,10 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 | 旅行型態 | 城市為主（首爾、釜山），濟州島可能自駕 → 自駕主題保留但縮小（約 20 張） |
 | 主題 | 日文版 22 條改韓國版（地鐵與交通卡、汗蒸幕與澡堂、美妝保養、咖啡廳與點餐機），加烤肉與炸雞、醫美與皮膚科、韓服與拍照打卡、追星與演唱會，共 26 條（`tools/themes.py`） |
 | 字量 | 約 1200（沿用） |
-| 外觀 | 沿用旅ことば，**配色一律照日文版**（米白底 #f7f5f0、一個家族一個顏色、下一站淡彩；2026-09-25 使用者要求）；路線改首爾地鐵風：墨色線號圓＋三位數站號（101、201…），不另加顏色 |
+| 外觀 | **2026-10-02 起：旅ことば v22 的「暮色玻璃」＋ShaderGradient 配色**（使用者要求韓文版套日文版新設計、換一套顏色；見下方同日段落與 `DESIGN.md`）。舊紀錄：沿用旅ことば，**配色一律照日文版**（米白底 #f7f5f0、一個家族一個顏色、下一站淡彩；2026-09-25 使用者要求）；路線改首爾地鐵風：墨色線號圓＋三位數站號（101、201…），不另加顏色 |
 | 聲音 | **定案：SunHi 女聲＋InJoon 男聲**（2026-09-25 使用者聽過三聲並排的試聽頁後說「利用目前的聲音即可」；另一個男聲 Hyunsu 不用）。試聽頁已撤 |
 | 圖示 | **定案：A「여행」**（Noto Serif KR 粗體；2026-09-25 使用者在測試展示站比過 B「旅行」＝跟日文版一模一樣、C「여」後選 A）。候選留在工作區 `icon-candidates/` |
-| 開場 | 太極的紅藍圓＋白色「旅」（日文版是日の丸紅圓）——**定案**（2026-09-25 使用者看過說可以） |
+| 開場 | **2026-10-02 起**：夜色亮成 Halo、暖光升起、玻璃磚上的「旅」＋「여행말」（同旅ことば的玻璃開場）。舊紀錄：太極的紅藍圓＋白色「旅」（2026-09-25 定案） |
 
 ## 進度
 
@@ -53,6 +53,20 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
 - [ ] impeccable 收尾（finish reviewer＋DESIGN.md）
 
+## 2026-10-02：套用旅ことば的「暮色玻璃」＋ShaderGradient 配色（v7）
+
+使用者在日文版選了 D 主題＋B 字體（旅ことば v21／v22），要求「將此設計套用在韓文旅遊 app 上，套上另一套顏色（shadergradient）」。
+- **天空**：`js/sky.js` 自寫著色器，畫法仿 ShaderGradient 的 plane（雜訊波面、斜向三色漸層、受光明暗、顆粒）；
+  淺色＝**Halo**（#ff5005、#dbba95、#d0bce1），深色＝**Universe**（#5606ff、#fe8989、#000，亮度 0.74）。顏色取自 ShaderGradient 原始碼的 presets。
+  省電做法同日文版（半解析度、每秒 10 格、捲動時暫停、背景時停、減少動態效果時只畫一格、沒有 WebGL 時 CSS 漸層）。
+- **玻璃與元件**：`css/app.css` 由旅ことば v22 的 CSS 產生，再套韓文版的差異（`--ko` 字型、上方漢字、［唸法］、三位數站號、墨色線號圓、字典列、音節方塊）。
+  墨色改偏暖的茄紫 #2a1a2e（配 Halo），深色面板是深紫玻璃。
+- **家族色**：`tools/themes.py` 換成韓國傳統色（쪽빛 藍紫、하늘 天空藍、치자 梔子黃、주황 朱黃、연지 胭脂粉、다홍 大紅、청록 青綠、자주 紫朱），比日文版鮮豔。
+- **字型**：韓文 Noto Serif KR 500／900（131＋95 KB），中文標題與數字 Zen Old Mincho 500／900（只收介面用字，各 226 KB）。舊的 `ko-serif.woff2`／`ko-serif-600.woff2` 刪掉。
+- **其他照搬**：分頁列玻璃珠（`js/tabbar.js`）、開場（`js/splash.js`）、玻璃字卡拖曳換卡、站號章玻璃、一行字自動縮字（`fitText`）、課程字表的打勾與「目前」、測驗題型標籤改 `data-qtype`。
+- **沒有照搬**（日文版的功能，不是設計）：字典詞頁與字典發音、測驗終點的「下一站」按鈕、依編碼排序。
+- e2e：開場選擇器改 `.splash-tile`、題型改讀 `data-qtype`、加分頁列玻璃珠位置檢查；`--all-cards` 通過（1,200 張）。
+
 ## 工具（已改成韓文版的）
 
 | 程式 | 作用 |
@@ -60,7 +74,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 | `tools/pipeline/krdict.py` | KRDict XML → `build/krdict.json`（5.4 萬詞；30000.xml 屬性值有沒跳脫的 `<`，已處理） |
 | `tools/pipeline/rr.py` | 官方羅馬拼音：子音照唸法、母音照寫法、不標緊音化（korean-romanizer 會拼錯，不要用） |
 | `tools/themes.py` | 26 條主題、八個家族、色票 |
-| `tools/make_font.py` | Noto Serif KR 子集 → `fonts/ko-serif.woff2`、`ko-serif-600.woff2`（資料改了要重跑並升 CACHE_VERSION） |
+| `tools/make_font.py` | 字型子集：Noto Serif KR 500／900 → `fonts/ko-serif-500.woff2`、`ko-serif-900.woff2`；Zen Old Mincho（中文標題，只收介面用字）→ `fonts/zenold-500.woff2`、`zenold-900.woff2`（資料或介面文字改了要重跑並升 CACHE_VERSION） |
 | `tools/make_icons.py` | 圖示（`--text`、`--font` 可做候選） |
 | `tools/make_audio.py` | edge-tts 發音（f／m） |
 

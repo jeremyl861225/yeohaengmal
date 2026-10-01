@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>여행말｜韓國旅遊單字卡</title>
 <meta name="description" content="韓國旅遊常用韓文單字卡：漢字標註、實際唸法、發音、例句，依旅遊實用頻率分課與測驗。">
-<meta name="theme-color" content="#f9f9f7">
+<meta name="theme-color" content="#e9c8b4">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -13,27 +13,37 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="여행말">
+<link rel="preload" href="fonts/ko-serif-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/zenold-900.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/app.css">
 <script>
   // 使用者在設定裡指定深淺色時，第一次畫面就套用（開場畫面才不會先閃另一種底色）
   try { var t = (JSON.parse(localStorage.getItem('yeohaengmal/v1') || '{}').settings || {}).theme; if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+  // 開場（js/splash.js）：開場期間先藏住 App 本體，開場結束後才淡入；減少動態效果時沒有開場
+  if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) document.documentElement.classList.add('splashing');
 </script>
 </head>
 <body>
 <!--
-THESIS: 一本米色紙上的地鐵路線手帳（旅ことば系列的韓文版）：首頁是由必備往進階延伸的三條線，一站一課；色彩只出現在線、站點與按鈕上，字才是主角。
-OWN-WORLD: 配色照旅ことば（2026-09-25 定案），底色改用使用者指定的 #f9f9f7；白色卡片＋細框，暖深咖啡深色模式（#1c1814）；八個主題家族各一個顏色（Colormind 色票主色），當點綴與下一站卡片的淡彩（約 12%），不鋪滿畫面；韓文明朝（打包的 Noto Serif KR 子集）、中文宋體，偏細；漢字詞上方用小字標漢字；首爾地鐵式的線號圓（墨色，不另加顏色）與三位數站號（101、201…）；膠囊鍵、18px 圓角選項磚、站點圓心落在不斷開的線上。
-STORY: 旅客一眼看到下一站是哪一課，一站一站學完、考一考、把不穩的字打星，到了韓國離線查字播音。
-FIRST VIEWPORT: 開啟時先有約一秒的開場（太極的紅藍圓與白色「旅」，點一下跳過）；之後左上「여행말」（여행 上方標「旅行」）與已學字數；下方是「下一站」卡片（路線章、課名、下一站是哪條線第幾站、每個字一格的進度、出發鍵）；其下是主題家族 3×3 色塊（篩選）與可收合的三條線。
-FORM: 沿用旅ことば（日文版）定案的外觀，只換 App 名、圖示字、韓文字型與路線隱喻（2026-09-25）。
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+THESIS: 旅ことば系列的「暮色玻璃」換成 ShaderGradient 的天色：背景是慢慢起伏的漸層波面（淺色 Halo＝橘、沙、淡紫；深色 Universe＝電光紫、珊瑚粉、黑），所有內容浮在液態玻璃上；路線圖、一站一課、字才是主角。拒絕：米色紙與平面卡片清單（2026-10-02 使用者要求韓文版套用日文版的新設計、換一套顏色）。
+OWN-WORLD: 自寫著色器的 ShaderGradient 式波面（plane：雜訊起伏、斜向三色漸層、受光明暗、顆粒）；液態玻璃面板（半透明白／深紫、背景模糊、上緣高光、細白邊）；墨色膠囊主按鈕；韓文 Noto Serif KR 900 的單字與品牌、中文標題 Zen Old Mincho、中文內文宋體；漢字詞上方小字標漢字；首爾地鐵的墨色線號圓與三位數站號；家族色是韓國傳統色（쪽빛、하늘、치자、주황、연지、다홍、청록、자주）；分頁列是玻璃底板＋凹口裡的玻璃珠。
+STORY: 打開時夜色亮成 Halo 的暖色、玻璃上浮出「旅」與「여행말」；接著看到下一站的玻璃大格與三條線；字卡用手指拖著換；到了韓國離線查字播音。
+FIRST VIEWPORT: 開場（夜色→Halo、暖光升起、玻璃磚上的「旅」，約 1.7 秒、點一下跳過）；之後左上「여행말」（여행 上方標「旅行」）與已學字數；下一站玻璃大格（站號章、課名、進度格、出發鍵、流光邊框）；主題家族 3×3 玻璃格；可收合的三條線玻璃面板（墨色線號圓）。
+FORM: 照搬旅ことば v22 的外觀與互動（使用者在日文版選 D 主題＋B 字體），只換天色（ShaderGradient Halo／Universe）、家族色與韓文字型。
+FINISH: 2026-10-02 套用；沿用旅ことば的審查結論與 DESIGN.md 結構，韓文版自己的 DESIGN.md 已寫；未解：實機效能待測
 -->
-<div id="splash" aria-hidden="true"><div class="sun"><i class="tg"></i><span lang="ko">旅</span></div></div>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div id="splash" aria-hidden="true"><div class="splash-tile"><span lang="zh-Hant">旅</span></div><p class="splash-name" lang="ko">여행말</p></div>
 <main id="app"></main>
 <nav class="tabbar" aria-label="主要分頁">
   <div class="tabbar-inner">
+    <!-- 底板：陰影、毛玻璃（clip-path 裁出凹口）、細框與高光；形狀由 js/tabbar.js 畫 -->
+    <svg class="tb-line tb-under" aria-hidden="true" preserveAspectRatio="none"><defs><filter id="tb-blur" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="7"/></filter></defs><path class="tb-shadow" filter="url(#tb-blur)"/></svg>
+    <div class="tb-glass" aria-hidden="true"></div>
+    <svg class="tb-line tb-over" aria-hidden="true" preserveAspectRatio="none"><defs><linearGradient id="tb-hi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="tb-hair"/><path class="tb-hi" stroke="url(#tb-hi)"/></svg>
+    <span class="tb-ball" aria-hidden="true"></span>
     <a class="tab" data-tab="home" href="#/">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/><circle cx="5" cy="12" r="2.2" fill="currentColor"/><circle cx="12" cy="12" r="2.2" fill="var(--surface)"/><circle cx="19" cy="12" r="2.2" fill="var(--surface)"/><path d="M4 6.5h9M4 17.5h13" opacity=".45"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/><circle cx="5" cy="12" r="2.2" fill="currentColor"/><circle cx="12" cy="12" r="2.2" fill="var(--tab-hole, var(--surface))"/><circle cx="19" cy="12" r="2.2" fill="var(--tab-hole, var(--surface))"/><path d="M4 6.5h9M4 17.5h13" opacity=".45"/></svg>
       路線
     </a>
     <a class="tab" data-tab="browse" href="#/browse">
@@ -55,6 +65,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </a>
   </div>
 </nav>
+<script type="module" src="js/splash.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

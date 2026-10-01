@@ -1,9 +1,11 @@
-// 여행말 — 主程式：路由與各畫面（旅ことば系列外觀＋首爾地鐵式站號）
+// 여행말 — 主程式：路由與各畫面（旅ことば系列「暮色玻璃」外觀＋首爾地鐵式站號；2026-10-02 起天空用 ShaderGradient 配色）
 import { store, save, isStarred, toggleStar, markSeen, recordAnswer, unitRec, exportBackup, importBackup, resetAll } from './store.js';
 import { play, stop, nextVoice, voiceName, audioUrl, cachedSet, downloadAudio } from './audio.js';
 import { rubyHTML, plain, upper, esc, normQuery, romaKey, isAscii, jamo, chosung, isChosungQuery, hasHangul } from './ruby.js';
 import { buildQuiz, TYPES, TYPE_HINT, TYPE_GROUPS } from './quiz.js';
 import { loadDict, searchDict, dictReady } from './dict.js';
+import { initTabbar, syncTabbar } from './tabbar.js';
+import { setSkyMode } from './sky.js';
 
 const $app = document.getElementById('app');
 const $meta = document.querySelector('meta[name="theme-color"]') || (() => {
@@ -58,16 +60,38 @@ function setField(t) {
     b.style.setProperty('--bgL', t.bgL);
     b.style.setProperty('--bgD', t.bgD);
   }
-  $meta.content = getComputedStyle(document.documentElement).getPropertyValue('--ground').trim() || '#f9f9f7';
+  $meta.content = getComputedStyle(document.documentElement).getPropertyValue('--sky-base').trim() || '#e9cbbd';
 }
 
 function unitBadge(u, sm = false) {
   const t = THEME[u.th];
-  return `<span class="badge${sm ? ' sm' : ''}" style="${fieldVars(t)}" aria-hidden="true"><span class="code">${TIER[u.t].name[0]}</span><span class="no">${stnNo(u)}</span></span>`;
+  return `<span class="badge${sm ? ' sm' : ''}" style="${strokeVars(t)}" aria-hidden="true"><span class="code">${TIER[u.t].name[0]}</span><span class="no">${stnNo(u)}</span></span>`;
 }
 // 單字編號（照學習順序）：0001、0002…
 const no4 = (c) => String(c.sq || 0).padStart(4, '0');
 // 首爾地鐵式站號：線號＋兩位數（必備線第 1 站＝101）
+// 一行字盡量不換行（旅ことば 2026-10-02 使用者要求，韓文版同一套）：data-fit＝最小字級；放不下就等比縮小；縮到最小也放不下，就維持原字級平均換行。
+// 先全部還原、再一次量、最後一次寫，只排版一次；畫面內容一換（MutationObserver）、字型載完、轉向、展開路線時重算。
+function fitText() {
+  const els = [...$app.querySelectorAll('[data-fit]')];
+  if (!els.length) return;
+  els.forEach((el) => { el.style.fontSize = ''; el.classList.remove('fit-wrap'); });
+  const m = els.map((el) => [el.clientWidth, el.scrollWidth, parseFloat(getComputedStyle(el).fontSize)]);
+  els.forEach((el, i) => {
+    const [w, sw, fs] = m[i];
+    if (!w || sw <= w + 0.5) return;
+    const min = +el.dataset.fit || 12;
+    const f = Math.floor((fs * w) / sw * 4) / 4;
+    if (f >= min) el.style.fontSize = f + 'px';
+    else el.classList.add('fit-wrap');   // 縮到最小也放不下：維持原字級、平均換成兩行
+  });
+}
+let fitQueued = false;
+const queueFit = () => { if (!fitQueued) { fitQueued = true; requestAnimationFrame(() => { fitQueued = false; fitText(); }); } };
+new MutationObserver(fitText).observe($app, { childList: true, subtree: true });
+addEventListener('resize', queueFit);
+document.addEventListener('toggle', queueFit, true);
+if (document.fonts) { document.fonts.ready.then(queueFit); document.fonts.addEventListener('loadingdone', queueFit); }
 const stnNo = (u) => `${u.t}${String(u.sn).padStart(2, '0')}`;
 const stationName = (u) => `${TIER[u.t].name}線第 ${u.sn} 站`;
 
@@ -83,7 +107,7 @@ function sayBtn(id, part, label) {
 function wordSize(text, max = 66) {
   const n = [...text.replace(/​/g, '')].length;
   const table = n <= 2 ? max : n <= 3 ? max - 4 : n <= 4 ? max - 10 : n <= 5 ? max - 16 : max - 22;
-  const avail = Math.min(window.innerWidth, 560) - 44;
+  const avail = Math.min(window.innerWidth, 560) - 76;   // 字卡玻璃的內距
   return Math.max(24, Math.min(table, Math.floor(avail / (n * 1.04))));
 }
 
@@ -133,6 +157,7 @@ function render(opts = {}) {
       document.body.classList.toggle('no-tabbar', NO_TABBAR.has(key));
       document.querySelectorAll('.tab').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === TAB_OF[root] ? 'page' : 'false'));
       if (!NO_TABBAR.has(key)) setField(null);
+      syncTabbar();
       fn(...m.slice(1), opts);
       updateBadge();
       return;
@@ -197,7 +222,7 @@ function stationRow(u, nu) {
   return `<li class="${state}" style="${strokeVars(THEME[u.th])}"><a class="stn" href="#/unit/${u.id}" aria-label="${stationName(u)}（${stnNo(u)}）：${esc(u.title)}${u.title === th ? '' : `（${esc(th)}）`}，已學 ${seen}／${u.cards.length}${r.done ? '，已到站' : ''}">
     <span class="stn-dot" aria-hidden="true">${r.done ? I.check('') : ''}</span>
     <span class="stn-main">
-      <span class="stn-name">${esc(u.title)}</span>
+      <span class="stn-name" data-fit="14">${esc(u.title)}</span>
       <span class="stn-sub"><span class="stn-no">${stnNo(u)}</span>${u.title === th ? '' : `<span>${esc(th)}</span>`}<span>${u.cards.length} 字${seen && !r.done ? `，已學 ${seen}` : ''}</span></span>
       ${seen && !r.done ? `<span class="stn-bar"><i style="--p:${(seen / u.cards.length).toFixed(3)}"></i></span>` : ''}
     </span>
@@ -221,7 +246,7 @@ function viewHome() {
   const fams = [{ id: '', name: '全部', rep: null }, ...(DATA.families || [])].map((f) => {
     const us = f.id ? UNITS.filter((u) => famOf(u) === f.id) : UNITS;
     const d = us.filter((u) => unitRec(u.id).done).length;
-    return `<button class="fam" data-fam="${f.id}" aria-pressed="${fam === f.id}"${f.rep ? ` style="${strokeVars(THEME[f.rep])}"` : ''}><b>${f.name}</b><span>${d}／${us.length} 站</span></button>`;
+    return `<button class="fam" data-fam="${f.id}" aria-pressed="${fam === f.id}"${f.rep ? ` style="${strokeVars(THEME[f.rep])}"` : ''}><b data-fit="12">${f.name}</b><span>${d}／${us.length} 站</span></button>`;
   }).join('');
 
   // 三條線可收合；沒動過的話只展開下一站所在的那條
@@ -240,12 +265,13 @@ function viewHome() {
   $app.innerHTML = `
     <header class="home-top">
       <h1 class="brand" lang="ko"><ruby>여행<rt lang="zh-Hant">旅行</rt></ruby>말</h1>
-      <p class="home-status">已學 <b>${seenCount}</b>／${CARDS.length} 字，到站 <b>${doneUnits}</b>／${UNITS.length} 站${starCount ? `，<a href="#/starred">不熟 <b>${starCount}</b> 字</a>` : ''}</p>
+      <p class="home-status" data-fit="12">已學 <b>${seenCount}</b>／${CARDS.length} 字，到站 <b>${doneUnits}</b>／${UNITS.length} 站${starCount ? `，<a href="#/starred">不熟 <b>${starCount}</b> 字</a>` : ''}</p>
     </header>
     <a class="next" href="#/learn/${nu.id}/${pos}" data-autoplay style="${fieldVars(THEME[nu.th])}">
-      <div class="next-head">${unitBadge(nu)}<div><h2>${esc(nu.title)}</h2><p>下一站：${stationName(nu)}${nu.title === THEME[nu.th].name ? '' : `，${esc(THEME[nu.th].name)}`}</p></div></div>
+      <div class="next-head">${unitBadge(nu)}<h2 data-fit="22">${esc(nu.title)}</h2></div>
+      <p class="next-sub" data-fit="12">下一站：${stationName(nu)}${nu.title === THEME[nu.th].name ? '' : `，${esc(THEME[nu.th].name)}`}</p>
       ${segsHTML(nu.cards.length, pos, (i) => (store.seen[nu.cards[i]] ? 'done' : ''))}
-      <div class="next-foot"><span class="n">${nuSeen ? `已學 ${nuSeen}／${nu.cards.length} 字，從 <span lang="ko">${esc(plain(firstCard.w))}</span> 繼續` : `${nu.cards.length} 個單字，第一個是 <span lang="ko">${esc(plain(firstCard.w))}</span>`}</span><span class="next-go">${pos ? '繼續' : '出發'}${I.go()}</span></div>
+      <div class="next-foot"><span class="n" data-fit="12">${nuSeen ? `已學 ${nuSeen}／${nu.cards.length} 字，從 <span lang="ko">${esc(plain(firstCard.w))}</span> 繼續` : `${nu.cards.length} 個單字，第一個是 <span lang="ko">${esc(plain(firstCard.w))}</span>`}</span><span class="next-go">${pos ? '繼續' : '出發'}${I.go()}</span></div>
     </a>
     <div class="fams" role="group" aria-label="依主題分類">${fams}</div>
     ${tiers}`;
@@ -259,23 +285,29 @@ function viewUnit(uid) {
   setField(t);
   const rec = unitRec(uid);
   const seen = u.cards.filter((id) => store.seen[id]).length;
+  // 目前這一個＝「繼續學習」會打開的那張（還沒開始學就不標）
+  const cur = seen || rec.pos ? Math.min(rec.pos || 0, u.cards.length - 1) : -1;
   const list = u.cards.map((id, i) => {
     const c = BYID[id];
-    return `<a class="row word-row${store.seen[id] ? ' seen' : ''}" href="#/learn/${uid}/${i}" data-autoplay>
-      <span class="idx">${no4(c)}</span>
-      <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh">${esc(c.zh)}</span></span>
+    const on = store.seen[id];
+    return `<a class="row word-row${on ? ' seen' : ''}${i === cur ? ' cur' : ''}" href="#/learn/${uid}/${i}" data-autoplay${i === cur ? ' aria-current="step"' : ''}>
+      <span class="mk" aria-hidden="true">${on && i !== cur ? I.check('') : ''}</span>
+      <span class="idx">${no4(c)}${i === cur ? '<b class="cur-tag">目前</b>' : ''}${on ? '<span class="sr-only">已學</span>' : ''}</span>
+      <span class="r-main"><span class="r-w" lang="ko" data-fit="15">${rubyHTML(c.w)}</span><span class="r-zh" data-fit="12">${esc(c.zh)}</span></span>
       ${starBtn(id)}
     </a>`;
   }).join('');
   $app.innerHTML = `
     <div class="topbar"><a class="icon-btn" href="#/" aria-label="回路線圖">${I.back()}</a><span class="title">${TIER[u.t].name}線</span></div>
-    <div class="unit-head">${unitBadge(u)}<div><h1>${esc(u.title)}</h1><p>${u.title === t.name ? '' : `${esc(t.name)}，`}${stationName(u)}，${u.cards.length} 個單字${seen ? `，已學 ${seen}` : ''}${rec.best != null ? `，測驗最佳 ${rec.best}/${rec.total}` : ''}</p></div></div>
+    <div class="unit-head">${unitBadge(u)}<div><h1 data-fit="20">${esc(u.title)}</h1><p data-fit="12">${u.title === t.name ? '' : `${esc(t.name)}，`}${stationName(u)}，${u.cards.length} 個單字${seen ? `，已學 ${seen}` : ''}${rec.best != null ? `，測驗最佳 ${rec.best}/${rec.total}` : ''}</p></div></div>
     ${segsHTML(u.cards.length, -1, (i) => (store.seen[u.cards[i]] ? 'done' : ''))}
     <div class="list">${list}</div>
     <div class="dock"><div class="dock-inner">
       <a class="pill" href="#/learn/${uid}/${Math.min(rec.pos || 0, u.cards.length - 1)}" data-autoplay>${rec.pos ? '繼續學習' : '開始學習'}</a>
       <button class="pill ghost" data-unit-quiz="${uid}">測驗這一站</button>
     </div></div>`;
+  // 目前這一個在畫面下面時捲過去（go() 會先捲回頂端，所以等下一格畫面）
+  if (cur > 2) requestAnimationFrame(() => { const el = $app.querySelector('.word-row.cur'); if (el) el.scrollIntoView({ block: 'center' }); });
 }
 
 /* ---------- 字卡（學習與查詢共用） ---------- */
@@ -291,11 +323,13 @@ function cardHTML(card, opts = {}) {
       ${card.note ? `<div class="note">${koIn(card.note)}</div>` : ''}
     </div>` : (card.note ? `<div class="panel"><div class="note" style="border:0;margin:0;padding:0">${koIn(card.note)}</div></div>` : '');
   return `<article class="card stage${lastDir ? ' from-' + lastDir : ''}">
+    <div class="face">
     <span class="card-no" aria-label="編號 ${no4(card)}">${no4(card)}</span>
-    <div class="word" lang="ko" style="--hw:${wordSize(w)}px">${rubyHTML(card.w)}</div>
+    <div class="word" lang="ko" style="--hw:${wordSize(w, 96)}px">${rubyHTML(card.w)}</div>
     ${readHTML(card)}
     <p class="meaning${veil}" data-veil tabindex="0">${esc(card.zh)}</p>
     <span class="pos">${esc(card.pos || '')}</span>
+    </div>
     <div class="say-row">${sayBtn(card.id, 'w', card.k === 'p' ? '整句' : '單字')}</div>
     ${ex}
     <div class="facts">${stars(card.t)}<span>${TIER[card.t].name}</span><span>旅遊頻率第 ${card.rank} 名</span>${card.n ? `<span>${card.n} 份資料收錄</span>` : ''}<span>${UNIT[card.u] ? `${stationName(UNIT[card.u])}　${esc(UNIT[card.u].title)}` : ''}</span></div>
@@ -442,7 +476,7 @@ function filterCards() {
 function rowHTML(c) {
   return `<a class="row" href="#/card/${c.id}" data-autoplay>
     ${UNIT[c.u] ? unitBadge(UNIT[c.u], true) : ''}
-    <span class="r-main"><span class="r-w" lang="ko">${rubyHTML(c.w)}</span><span class="r-zh"><span class="r-no">${no4(c)}</span>${esc(c.zh)}</span></span>
+    <span class="r-main"><span class="r-w" lang="ko" data-fit="15">${rubyHTML(c.w)}</span><span class="r-zh" data-fit="12"><span class="r-no">${no4(c)}</span>${esc(c.zh)}</span></span>
     ${starBtn(c.id)}
   </a>`;
 }
@@ -450,7 +484,7 @@ function rowHTML(c) {
 function viewBrowse() {
   const tierChips = [0, 1, 2, 3].map((t) => `<button class="chip" data-f-tier="${t}" aria-pressed="${browse.tier === t}">${t ? TIER[t].name : '全部等級'}</button>`).join('');
   const themeChips = [`<button class="chip" data-f-th="" aria-pressed="${!browse.th}">全部主題</button>`]
-    .concat(DATA.themes.map((t) => `<button class="chip" data-f-th="${t.id}" aria-pressed="${browse.th === t.id}" style="${fieldVars(t)}"><span class="dot"></span>${esc(t.name)}</button>`)).join('');
+    .concat(DATA.themes.map((t) => `<button class="chip" data-f-th="${t.id}" aria-pressed="${browse.th === t.id}" style="${strokeVars(t)}"><span class="dot"></span>${esc(t.name)}</button>`)).join('');
   $app.innerHTML = `
     <div class="search">
       <label class="search-box">${I.search()}<input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="查單字：韓文、拼音、漢字、中文、英文、編號" value="${esc(browse.q)}" aria-label="搜尋單字"></label>
@@ -567,7 +601,7 @@ function viewQuizSetup() {
   const scopes = [['tier', '依等級'], ['theme', '依主題'], ['unit', '依單元'], ['star', '不熟單字'], ['wrong', '曾答錯'], ['all', '全部']];
   let sub = '';
   if (quizSetup.scope === 'tier') sub = `<div class="wrap">${DATA.tiers.map((t) => `<button class="chip" data-qs-tier="${t.id}" aria-pressed="${quizSetup.tier === t.id}">${t.name}</button>`).join('')}</div>`;
-  if (quizSetup.scope === 'theme') sub = `<div class="wrap">${DATA.themes.map((t) => `<button class="chip" data-qs-th="${t.id}" aria-pressed="${(quizSetup.th || DATA.themes[0].id) === t.id}" style="${fieldVars(t)}"><span class="dot"></span>${esc(t.name)}</button>`).join('')}</div>`;
+  if (quizSetup.scope === 'theme') sub = `<div class="wrap">${DATA.themes.map((t) => `<button class="chip" data-qs-th="${t.id}" aria-pressed="${(quizSetup.th || DATA.themes[0].id) === t.id}" style="${strokeVars(t)}"><span class="dot"></span>${esc(t.name)}</button>`).join('')}</div>`;
   if (quizSetup.scope === 'unit') sub = `<div class="wrap"><select id="qs-unit" class="chip" style="width:100%;height:46px" aria-label="選擇單元">${DATA.tiers.map((t) => `<optgroup label="${t.name}">${UNITS.filter((u) => u.t === t.id).map((u) => `<option value="${u.id}"${quizSetup.unit === u.id ? ' selected' : ''}>${esc(u.title)}（${esc(THEME[u.th].name)}）</option>`).join('')}</optgroup>`).join('')}</select></div>`;
   const n = scopeCards().length;
   const counts = [10, 20, 30, 0];
@@ -686,8 +720,7 @@ function viewQuizRun() {
       <span class="count">${quiz.i + 1}/${quiz.list.length}</span>
     </div>
     ${segsHTML(quiz.list.length, quiz.i, (k) => { const a = quiz.list[k]; return a.answer == null ? '' : a.answer ? 'ok' : 'ng'; })}
-    <div class="stage${lastDir ? ' from-' + lastDir : ''}">
-      <div class="q-kind">${LISTEN.has(q.type) ? '聽力' : q.type === 'spell' ? '拼字' : '看字'}・${TYPES[q.type]}</div>
+    <div class="stage${lastDir ? ' from-' + lastDir : ''}" data-qtype="${q.type}" aria-label="${LISTEN.has(q.type) ? '聽力' : q.type === 'spell' ? '拼字' : '看字'}：${TYPES[q.type]}">
       <div class="prompt">${prompt}</div>
       ${answerArea}
     </div>
@@ -838,6 +871,7 @@ function applyTheme() {
   const t = store.settings.theme;
   if (t === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', t);
+  setSkyMode(isDark());   // 天空跟著深淺色：Halo（淺色）／Universe（深色）
   document.body.classList.toggle('hanja-none', !store.settings.hanja);
   if (!document.body.classList.contains('lesson')) setField(null);
 }
@@ -958,27 +992,45 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// 左右滑動換站
+// 左右滑動換站：玻璃字卡跟著手指走，放手時超過門檻就甩出去換卡，否則彈回（旅ことば v21 同一套）
 let touch = null;
 document.addEventListener('touchstart', (e) => {
-  if (!e.target.closest('.card')) return;
+  const card = e.target.closest('.card');
+  if (!card) return;
   const t = e.touches[0];
-  touch = { x: t.clientX, y: t.clientY, at: Date.now() };
+  touch = { x: t.clientX, y: t.clientY, at: Date.now(), face: card.querySelector('.face'), lock: null };
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (!touch || !touch.face) return;
+  const t = e.touches[0];
+  const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+  if (touch.lock == null && Math.hypot(dx, dy) > 8) touch.lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+  if (touch.lock !== 'x') return;
+  touch.face.classList.remove('settle');
+  touch.face.classList.add('dragging');
+  touch.face.style.transform = `translateX(${dx}px) rotate(${dx / 30}deg)`;
 }, { passive: true });
 document.addEventListener('touchend', (e) => {
   if (!touch) return;
+  const { face, lock } = touch;
   const t = e.changedTouches[0];
   const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
   const quick = Date.now() - touch.at < 600;
   touch = null;
-  if (!quick || Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
   const nav = $app.dataset.nav ? JSON.parse($app.dataset.nav) : {};
   const dir = dx < 0 ? 'next' : 'prev';
-  if (nav[dir]) { lastDir = dir; go(nav[dir], { autoplay: true }); }
+  const swipe = (lock === 'x' && Math.abs(dx) > 90) || (quick && Math.abs(dx) >= 60 && Math.abs(dy) <= Math.abs(dx) * 0.6);
+  if (face) { face.classList.remove('dragging'); face.classList.add('settle'); }
+  if (swipe && nav[dir]) {
+    if (face && lock === 'x' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      face.style.transform = `translateX(${dx < 0 ? -110 : 110}vw) rotate(${dx < 0 ? -10 : 10}deg)`;
+      setTimeout(() => { lastDir = dir; go(nav[dir], { autoplay: true }); }, 170);
+    } else { lastDir = dir; go(nav[dir], { autoplay: true }); }
+  } else if (face) face.style.transform = '';
 }, { passive: true });
 
 document.addEventListener('audio-error', () => toast('這個音檔還沒下載，連上網路後再試一次'));
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render());
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setSkyMode(isDark()); render(); });
 
 async function runDownload(tier, btn) {
   const row = document.querySelector(`[data-dl-row="${tier}"]`);
@@ -996,15 +1048,16 @@ async function runDownload(tier, btn) {
 }
 
 /* ---------- 啟動 ---------- */
-// 開場畫面：至少停到開啟後 0.9 秒（動畫播完），資料載好才淡出；點一下立刻跳過
+// 開場畫面：開場動畫（js/splash.js）跑完、資料載好才淡出；點一下立刻跳過
 const splash = document.getElementById('splash');
 const SPLASH_MIN = 900;
 function hideSplash(now = false) {
   if (!splash || splash.classList.contains('out')) return;
-  const wait = now ? 0 : Math.max(0, SPLASH_MIN - performance.now());
+  const wait = now ? 0 : Math.max(0, Math.max(SPLASH_MIN, window.__tkSplashEnd || 0) - performance.now());
   setTimeout(() => {
     splash.classList.add('out');
-    setTimeout(() => splash.remove(), 400);
+    document.documentElement.classList.remove('splashing');   // App 本體淡入，天空不換
+    setTimeout(() => splash.remove(), 500);
   }, wait);
 }
 if (splash) splash.addEventListener('pointerdown', () => hideSplash(true), { once: true });
@@ -1031,6 +1084,7 @@ async function boot() {
     c._rk = romaKey(c.rm || '');
   }
   renderedHash = location.hash;
+  initTabbar();
   render();
   hideSplash();
 }
