@@ -50,6 +50,25 @@ export function play(id, part = 'w', btn = null, voice = null) {
   return v;
 }
 
+// 單一音檔（四十音課程 audio/l/，2026-10-02 照旅ことば加的）：點了才抓；抓不到時呼叫 onFail；rate 不給就照設定
+export function playFile(src, btn = null, onFail = null, rate = null) {
+  clearPlaying();
+  player.pause();
+  player.src = src;
+  player.defaultPlaybackRate = rate || store.settings.rate;
+  player.playbackRate = rate || store.settings.rate;
+  if ('preservesPitch' in player) player.preservesPitch = true;
+  if (btn) { playingBtn = btn; btn.classList.add('playing'); }
+  const p = player.play();
+  if (p && p.catch) {
+    p.catch((err) => {
+      clearPlaying();
+      if (err && err.name === 'NotAllowedError') return;
+      if (onFail) onFail();
+    });
+  }
+}
+
 export function stop() { player.pause(); }
 
 // 離線下載：把音檔放進獨立快取（改版不會清掉）

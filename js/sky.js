@@ -11,7 +11,7 @@ export const PALETTES = {
   night: { c: ['#1c0a4a', '#2a0f26', '#000000'], b: 0.6 },
 };
 
-const FRAG = `
+export const FRAG = `
 precision mediump float;
 uniform vec2 u_res;
 uniform float u_t;

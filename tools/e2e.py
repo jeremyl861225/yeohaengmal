@@ -9,6 +9,7 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = next((a for a in sys.argv[1:] if a.startswith("http")), "http://127.0.0.1:8741/")
 ALL = "--all-cards" in sys.argv
+STORE_KEY = "yeohaengmal/v1"
 data = json.load(open(os.path.join(ROOT, "data", "cards.json"), encoding="utf-8"))
 cards = data["cards"]
 fails = []
@@ -181,6 +182,80 @@ def main():
         pg.wait_for_selector(".card .word rt", state="attached")
         vis = pg.eval_on_selector(".card .word rt", "e => getComputedStyle(e).visibility")
         check(vis == "hidden", "設定關掉漢字標註後仍看得到漢字")
+        # 字母課程（五十音／四十音，2026-10-02）：課程表、點字母出現說明、練習全對會記成「學完」
+        letters = json.load(open(os.path.join(ROOT, "data", "letters.json"), encoding="utf-8"))
+        all_l = [l for g in letters["groups"] for l in g["lessons"]]
+        miss = [c["a"] for l in all_l for row in l["rows"] for c in row if c and not os.path.exists(os.path.join(ROOT, "audio", c["a"] + ".mp3"))]
+        check(not miss, f"課程音檔缺 {len(miss)} 個：{miss[:5]}")
+        first = all_l[0]
+        pg.goto(BASE + "#/letters")
+        pg.wait_for_selector(".lt-row")
+        check(pg.eval_on_selector_all(".lt-row", "els => els.length") == len(all_l), "課程表的課數不對")
+        pg.goto(BASE + f"#/letters/{first['id']}")
+        pg.wait_for_selector(".lt-cell[data-lt-i]")
+        pg.click(".lt-cell[data-lt-i='0']")
+        pg.wait_for_selector("#lt-detail .lt-ex")
+        cells = [c for row in first["rows"] for c in row if c]
+        by_audio = {c["a"]: c for c in cells}
+        pg.goto(BASE + f"#/letters/{first['id']}/practice")
+        for _ in range(40):
+            pg.wait_for_selector("[data-lt-pick]:not([disabled]), .terminal")
+            if pg.query_selector(".terminal"):
+                break
+            t = pg.get_attribute(".stage", "data-lt-type")
+            opts = pg.eval_on_selector_all("[data-lt-pick]", "els => els.map(e => e.textContent.trim())")
+            if t == "listen":
+                want = by_audio[pg.get_attribute(".prompt .listen", "data-lt-say")]["ch"]
+            elif t == "read":
+                big = pg.inner_text(".lt-big").strip()
+                want = next(c["roma"] for c in cells if c["ch"] == big)
+            else:
+                big = pg.inner_text(".lt-big").strip()
+                want = next(c["ch"] for c in cells if c.get("hira") == big)
+            check(want in opts, f"練習題的選項裡沒有正確答案（{t}：{want} / {opts}）")
+            pg.click(f"[data-lt-pick='{opts.index(want) if want in opts else 0}']")
+            pg.wait_for_timeout(900)
+        score = pg.inner_text(".terminal .score").replace("\n", "")
+        rec_ = pg.evaluate(f"JSON.parse(localStorage.getItem('{STORE_KEY}')).letters['{first['id']}']")
+        check(rec_ and rec_.get("done") and rec_["best"] == rec_["total"], f"練習全對卻沒記成學完：{score} {rec_}")
+        pg.goto(BASE + "#/")
+        pg.wait_for_selector(".extras .extra")
+        check("學完 1" in pg.inner_text(".extras"), "首頁入口格沒有顯示學完的課數")
+
+        # 數字與量詞專欄＋數字聽力（日文版，2026-10-02）：音檔齊全、變音有標色、照答案按數字鍵會全對
+        npath = os.path.join(ROOT, "data", "numbers.json")
+        if os.path.exists(npath):
+            nums = json.load(open(npath, encoding="utf-8"))
+            keys = [it["a"] for s_ in nums["sections"] for g in (s_.get("groups") or s_.get("counters")) for it in g["items"]] + [q["a"] for q in nums["quiz"]]
+            miss = [k for k in keys if not os.path.exists(os.path.join(ROOT, "audio", k + ".mp3"))]
+            check(not miss, f"數字音檔缺 {len(miss)} 個：{miss[:5]}")
+            pg.goto(BASE + "#/numbers")
+            pg.wait_for_selector(".nm-cell")
+            pg.click("[data-nm-tab='1']")
+            pg.wait_for_selector(".nm-ctr")
+            check(pg.eval_on_selector_all(".nm-cell .r em", "els => els.length") >= 60, "量詞表沒有標出變音")
+            ans_of = {q["a"]: q for q in nums["quiz"]}
+            pg.goto(BASE + "#/numquiz")
+            pg.click("[data-nq-count='10']")
+            pg.click("[data-nq-start]")
+            fields = {"price": ["n"], "date": ["m", "d"], "time": ["h", "mi"], "count": ["n"]}
+            kinds_seen = set()
+            for _ in range(10):
+                pg.wait_for_selector(".stage[data-nq-kind] .listen")
+                q = ans_of[pg.get_attribute(".prompt .listen", "data-nm-say")]
+                kinds_seen.add(q["k"])
+                for fi, k in enumerate(fields[q["k"]]):
+                    pg.click(f"[data-nq-field='{fi}']")
+                    for ch in str(q["ans"][k]):
+                        pg.click(f"[data-nq-key='{ch}']")
+                pg.click("[data-nq-ok]")
+                pg.wait_for_selector(".sheet")
+                check("ok" in (pg.get_attribute(".sheet", "class") or ""), f"照答案填卻判錯：{q['show']} {q['ans']}")
+                pg.click("[data-nq-next]")
+            pg.wait_for_selector(".terminal .score")
+            check(pg.inner_text(".terminal .score").replace("\n", "").startswith("10"), "數字聽力全對但分數不是 10")
+            check(len(kinds_seen) == 4, f"數字聽力題型不齊：{kinds_seen}")
+
         check(not errs, f"頁面錯誤：{errs[:3]}")
         ctx.close()
 

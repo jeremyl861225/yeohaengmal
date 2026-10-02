@@ -1,11 +1,12 @@
 // 여행말 — 主程式：路由與各畫面（旅ことば系列「暮色玻璃」外觀＋首爾地鐵式站號；2026-10-02 起天空用 ShaderGradient 配色）
 import { store, save, isStarred, toggleStar, markSeen, recordAnswer, unitRec, exportBackup, importBackup, resetAll } from './store.js';
-import { play, stop, nextVoice, voiceName, audioUrl, cachedSet, downloadAudio } from './audio.js';
+import { play, playFile, stop, nextVoice, voiceName, audioUrl, cachedSet, downloadAudio } from './audio.js';
 import { rubyHTML, plain, upper, esc, normQuery, romaKey, isAscii, jamo, chosung, isChosungQuery, hasHangul } from './ruby.js';
 import { buildQuiz, TYPES, TYPE_HINT, TYPE_GROUPS } from './quiz.js';
 import { loadDict, searchDict, dictReady } from './dict.js';
 import { initTabbar, syncTabbar } from './tabbar.js';
 import { setSkyMode } from './sky.js';
+import { setupLetters, loadLetters, lettersProgress, lettersAudio, viewLetters, viewLetterChart, viewLesson, viewLetterPractice } from './letters.js';
 
 const $app = document.getElementById('app');
 const $meta = document.querySelector('meta[name="theme-color"]') || (() => {
@@ -139,11 +140,16 @@ const routes = [
   [/^browse$/, viewBrowse],
   [/^quiz$/, viewQuizSetup],
   [/^quiz\/run$/, viewQuizRun],
+  [/^letters$/, viewLetters],
+  [/^letters\/chart$/, viewLetterChart],
+  [/^letters\/(\w+)$/, viewLesson],
+  [/^letters\/(\w+)\/practice$/, viewLetterPractice],
   [/^starred$/, viewStarred],
   [/^settings$/, viewSettings],
 ];
-const TAB_OF = { '': 'home', unit: 'home', learn: 'home', card: 'browse', browse: 'browse', quiz: 'quiz', starred: 'starred', settings: 'settings' };
-const NO_TABBAR = new Set(['unit', 'learn', 'card', 'quiz/run']);
+const TAB_OF = { '': 'home', unit: 'home', learn: 'home', card: 'browse', browse: 'browse', quiz: 'quiz', starred: 'starred', settings: 'settings',
+  letters: 'home' };
+const NO_TABBAR = new Set(['unit', 'learn', 'card', 'quiz/run', 'practice']);
 
 function currentPath() { return location.hash.replace(/^#\/?/, ''); }
 
@@ -153,7 +159,7 @@ function render(opts = {}) {
     const m = path.match(re);
     if (m) {
       const root = path.split('/')[0];
-      const key = path.startsWith('quiz/run') ? 'quiz/run' : root;
+      const key = path.startsWith('quiz/run') ? 'quiz/run' : /\/practice$/.test(path) ? 'practice' : root;
       document.body.classList.toggle('no-tabbar', NO_TABBAR.has(key));
       document.querySelectorAll('.tab').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === TAB_OF[root] ? 'page' : 'false'));
       if (!NO_TABBAR.has(key)) setField(null);
@@ -273,8 +279,18 @@ function viewHome() {
       ${segsHTML(nu.cards.length, pos, (i) => (store.seen[nu.cards[i]] ? 'done' : ''))}
       <div class="next-foot"><span class="n" data-fit="12">${nuSeen ? `已學 ${nuSeen}／${nu.cards.length} 字，從 <span lang="ko">${esc(plain(firstCard.w))}</span> 繼續` : `${nu.cards.length} 個單字，第一個是 <span lang="ko">${esc(plain(firstCard.w))}</span>`}</span><span class="next-go">${pos ? '繼續' : '出發'}${I.go()}</span></div>
     </a>
+    ${extrasHTML()}
     <div class="fams" role="group" aria-label="依主題分類">${fams}</div>
     ${tiers}`;
+}
+
+// 課程入口（2026-10-02，旅ことば的五十音同一套）：四十音
+function extrasHTML() {
+  const lp = lettersProgress();
+  const ls = lp ? (lp.done ? `學完 ${lp.done}／${lp.total} 課` : lp.sub) : '母音・子音・收音';
+  return `<div class="extras one" role="group" aria-label="課程">
+    <a class="extra" href="#/letters"><b class="ex-glyph" lang="ko">가</b><span class="ex-t"><b data-fit="13">四十音</b><small data-fit="10">${esc(ls)}</small></span></a>
+  </div>`;
 }
 
 /* ---------- 路線頁（單元） ---------- */
@@ -815,7 +831,11 @@ async function viewSettings() {
       <div><span class="s-label">${t.name}</span><span class="s-sub" data-dl-status="${t.id}">約 ${mb(DATA.meta.audioBytes[t.id] || 0)} MB</span></div>
       <button class="pill ghost small" data-dl="${t.id}">下載</button>
       <div class="bar" hidden><i></i></div>
-    </div>`).join('');
+    </div>`).join('') + `<div class="dl" data-dl-row="x">
+      <div><span class="s-label">四十音</span><span class="s-sub" data-dl-status="x">課程與專欄的發音</span></div>
+      <button class="pill ghost small" data-dl="x">下載</button>
+      <div class="bar" hidden><i></i></div>
+    </div>`;
   $app.innerHTML = `
     <h1 class="page-title">設定</h1>
     <h2 class="group-title">字卡</h2>
@@ -856,8 +876,9 @@ async function viewSettings() {
     </div>`;
   try {
     const have = await cachedSet();
-    DATA.tiers.forEach((t) => {
-      const urls = audioUrlsForTier(t.id);
+    const extra = await extraAudioUrls();
+    [...DATA.tiers, { id: 'x' }].forEach((t) => {
+      const urls = t.id === 'x' ? extra : audioUrlsForTier(t.id);
       const got = urls.filter((u) => have.has(u.replace(/^audio\//, ''))).length;
       const st = document.querySelector(`[data-dl-status="${t.id}"]`);
       if (st && got) st.textContent = got === urls.length ? `已全部下載（${urls.length} 個音檔）` : `已下載 ${got}／${urls.length}`;
@@ -943,7 +964,7 @@ document.addEventListener('click', async (e) => {
     store.settings[d.set] = d.set === 'rate' ? +d.val : d.val;
     save(); applyTheme(); viewSettings(); return;
   }
-  if (d.dl) { runDownload(+d.dl, el); return; }
+  if (d.dl) { runDownload(d.dl === 'x' ? 'x' : +d.dl, el); return; }
   if (d.export !== undefined) {
     const blob = new Blob([exportBackup()], { type: 'application/json' });
     const a = document.createElement('a');
@@ -1032,19 +1053,25 @@ document.addEventListener('touchend', (e) => {
 document.addEventListener('audio-error', () => toast('這個音檔還沒下載，連上網路後再試一次'));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setSkyMode(isDark()); render(); });
 
+// 課程與專欄的音檔（2026-10-02）：四十音
+async function extraAudioUrls() {
+  return lettersAudio();
+}
+
 async function runDownload(tier, btn) {
   const row = document.querySelector(`[data-dl-row="${tier}"]`);
   const bar = row.querySelector('.bar');
   const st = row.querySelector('[data-dl-status]');
   btn.disabled = true; btn.textContent = '下載中';
   bar.hidden = false;
-  const res = await downloadAudio(audioUrlsForTier(tier), (done, total, failed) => {
+  const urls = tier === 'x' ? await extraAudioUrls() : audioUrlsForTier(tier);
+  const res = await downloadAudio(urls, (done, total, failed) => {
     bar.firstElementChild.style.setProperty('--p', (done / total).toFixed(4));
     st.textContent = `${done}／${total}${failed ? `（${failed} 個失敗）` : ''}`;
   });
   btn.textContent = res.failed ? '重試' : '已下載';
   btn.disabled = !res.failed;
-  toast(res.failed ? `有 ${res.failed} 個音檔沒下載成功，再按一次重試` : `${TIER[tier].name}的發音都存到手機了`);
+  toast(res.failed ? `有 ${res.failed} 個音檔沒下載成功，再按一次重試` : `${tier === 'x' ? '四十音' : TIER[tier].name}的發音都存到手機了`);
 }
 
 /* ---------- 啟動 ---------- */
@@ -1064,7 +1091,7 @@ if (splash) splash.addEventListener('pointerdown', () => hideSplash(true), { onc
 
 async function boot() {
   applyTheme();
-  const res = await fetch('data/cards.json');
+  const [res] = await Promise.all([fetch('data/cards.json'), loadLetters().catch(() => null)]);   // 四十音的課數給首頁入口格用
   DATA = await res.json();
   CARDS = DATA.cards;
   BYID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
@@ -1083,6 +1110,7 @@ async function boot() {
     c._hj = upper(c.w);
     c._rk = romaKey(c.rm || '');
   }
+  setupLetters({ $app, I, esc, rubyHTML, toast, go, segsHTML, play, playFile, store, save, card: (id) => BYID[id] });
   renderedHash = location.hash;
   initTabbar();
   render();

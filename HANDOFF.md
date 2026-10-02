@@ -53,6 +53,18 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
 - [ ] impeccable 收尾（finish reviewer＋DESIGN.md）
 
+## 2026-10-02：新圖示「여」、四十音課程（v8）
+
+使用者要求：圖示重做（顏色同 ShaderGradient、取消鐵軌、韓文改成一個字）；新增四十音課程（由我發揮）。
+- **圖示**：「여」＝「旅」的韓文音讀（여행＝旅行），和日文版的「旅」成對。`tools/make_icons.py` 用 `js/sky.js` 的著色器（Halo，t＝140）畫背景，中央墨色 Noto Serif KR 900。
+  iPhone 要刪掉主畫面捷徑再加一次才會換圖示。
+- **四十音**（`#/letters`，首頁入口格；`js/letters.js` 與旅ことば共用，內容在 `data/letters.json`，`tools/build_letters.py` 產生）：
+  9 課＝基本母音兩課、基本子音兩課、硬音、平音・激音・硬音對照（가／카／까 聽辨）、複合母音兩課、收音七個代表音；全表分母音、子音、收音。
+  每個字母有名稱（기역…）、代表音節、注音近似提示、例字（字卡裡挑）；練習：聽音選字、看字選拼音；對照課的選項優先用同一列。
+- **音檔**：`audio/l/` 61 個，SunHi 放慢 30%（`tools/make_extra_audio.py`）；設定頁「離線使用」多一列「四十音」。
+- **字型**：`tools/make_font.py` 把 `data/letters.json` 也算進字表（字母 ㄱ ㅏ… 與課程的中文標題）。
+- `js/audio.js` 加 `playFile`（旅ことば同一支）。e2e：課程表、點字母出現說明、第一課練習全對會記成學完、首頁入口格顯示學完課數。
+
 ## 2026-10-02：套用旅ことば的「暮色玻璃」＋ShaderGradient 配色（v7）
 
 使用者在日文版選了 D 主題＋B 字體（旅ことば v21／v22），要求「將此設計套用在韓文旅遊 app 上，套上另一套顏色（shadergradient）」。

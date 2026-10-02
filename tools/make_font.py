@@ -31,8 +31,8 @@ def data():
 
 
 def ui_text():
-    """App 裡寫死的字：index.html 與 js/*.js"""
-    parts = [open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()]
+    """App 裡寫死的字：index.html、js/*.js、四十音課程（data/letters.json）"""
+    parts = [open(os.path.join(ROOT, "index.html"), encoding="utf-8").read(), open(os.path.join(ROOT, "data", "letters.json"), encoding="utf-8").read()]
     for p in glob.glob(os.path.join(ROOT, "js", "*.js")):
         parts.append(open(p, encoding="utf-8").read())
     return "".join(parts)
