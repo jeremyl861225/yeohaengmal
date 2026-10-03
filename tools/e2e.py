@@ -222,6 +222,59 @@ def main():
         pg.wait_for_selector(".extras .extra")
         check("學完 1" in pg.inner_text(".extras"), "首頁入口格沒有顯示學完的課數")
 
+        # 文法專欄（2026-10-03）：音檔齊全、課程表、每一課都能開、練習照答案點會記成「學完」、答錯會出現解釋
+        gram = json.load(open(os.path.join(ROOT, "data", "grammar.json"), encoding="utf-8"))
+        g_all = [l for g in gram["groups"] for l in g["lessons"]]
+        gkeys = {e["a"] for l in g_all for e in l["ex"]} | {q["au"] for l in g_all for q in l["quiz"]}
+        miss = [k for k in gkeys if not os.path.exists(os.path.join(ROOT, "audio", k + ".mp3"))]
+        check(not miss, f"文法音檔缺 {len(miss)} 個：{miss[:5]}")
+        pg.goto(BASE + "#/grammar")
+        pg.wait_for_selector(".lt-row")
+        check(pg.eval_on_selector_all(".lt-row", "els => els.length") == len(g_all), "文法課程表的課數不對")
+        for l in g_all:
+            pg.goto(BASE + f"#/grammar/{l['id']}")
+            pg.wait_for_selector(".gm-ex")
+            check(pg.eval_on_selector_all(".gm-ex", "els => els.length") == len(l["ex"]), f"{l['id']} 例句數不對")
+            check(pg.eval_on_selector_all(".gm-ko em", "els => els.length") >= len(l["ex"]), f"{l['id']} 例句沒有標出重點")
+            check(bool(pg.query_selector(".gm-table")) == bool(l["table"]), f"{l['id']} 表格有無不對")
+        for lid in ("is", "seyo", "native"):
+            L_ = next(l for l in g_all if l["id"] == lid)
+            pg.goto(BASE + f"#/grammar/{lid}/practice")
+            wrong_first = lid == "seyo"
+            for n_ in range(40):
+                pg.wait_for_selector("[data-gm-pick]:not([disabled]), .terminal")
+                if pg.query_selector(".terminal"):
+                    break
+                t = pg.get_attribute(".stage", "data-gm-type")
+                opts = pg.eval_on_selector_all(".tiles .tile", "els => els.map(e => e.innerText.trim())")
+                if t == "listen":
+                    key = pg.get_attribute(".listen", "data-gm-say")
+                    want = next(e["zh"] for e in L_["ex"] if e["a"] == key)
+                else:
+                    zh = pg.inner_text(".gm-qzh").strip()
+                    q = next((q for q in L_["quiz"] if q["zh"] == zh and sorted(q["o"]) == sorted(opts)), None)
+                    check(q is not None, f"{lid} 找不到對應的題目：{zh} / {opts}")
+                    want = q["o"][q["a"]] if q else opts[0]
+                check(want in opts, f"{lid} 練習題的選項裡沒有正確答案（{t}：{want} / {opts}）")
+                k_ = opts.index(want) if want in opts else 0
+                if wrong_first and n_ == 0:       # 第一題故意答錯：要出現解釋與「下一題」
+                    pg.click(f"[data-gm-pick='{(k_ + 1) % len(opts)}']")
+                    pg.wait_for_selector(".sheet.ng")
+                    if t != "listen":
+                        check(bool(pg.inner_text(".gm-why").strip()), f"{lid} 答錯沒有解釋")
+                    pg.click("[data-gm-next]")
+                    continue
+                pg.click(f"[data-gm-pick='{k_}']")
+                pg.wait_for_timeout(1500 if t != "listen" else 900)
+            rec_ = pg.evaluate(f"JSON.parse(localStorage.getItem('{STORE_KEY}')).grammar['{lid}']")
+            if wrong_first:
+                check(rec_ and rec_["best"] == rec_["total"] - 1 and rec_["done"], f"{lid} 錯一題應該還算學完：{rec_}")
+            else:
+                check(rec_ and rec_.get("done") and rec_["best"] == rec_["total"], f"{lid} 練習全對卻沒記成學完：{rec_}")
+        pg.goto(BASE + "#/")
+        pg.wait_for_selector(".extras .extra")
+        check("學完 3／27" in pg.inner_text(".extras"), "首頁入口格沒有顯示文法學完的課數")
+
         # 數字與量詞專欄＋數字聽力（日文版，2026-10-02）：音檔齊全、變音有標色、照答案按數字鍵會全對
         npath = os.path.join(ROOT, "data", "numbers.json")
         if os.path.exists(npath):

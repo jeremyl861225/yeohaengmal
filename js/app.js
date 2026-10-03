@@ -7,6 +7,7 @@ import { loadDict, searchDict, dictReady } from './dict.js';
 import { initTabbar, syncTabbar } from './tabbar.js';
 import { setSkyMode } from './sky.js';
 import { setupLetters, loadLetters, lettersProgress, lettersAudio, viewLetters, viewLetterChart, viewLesson, viewLetterPractice } from './letters.js';
+import { setupGrammar, loadGrammar, grammarProgress, grammarAudio, viewGrammar, viewGrammarLesson, viewGrammarPractice } from './grammar.js';
 
 const $app = document.getElementById('app');
 const $meta = document.querySelector('meta[name="theme-color"]') || (() => {
@@ -144,11 +145,14 @@ const routes = [
   [/^letters\/chart$/, viewLetterChart],
   [/^letters\/(\w+)$/, viewLesson],
   [/^letters\/(\w+)\/practice$/, viewLetterPractice],
+  [/^grammar$/, viewGrammar],
+  [/^grammar\/(\w+)$/, viewGrammarLesson],
+  [/^grammar\/(\w+)\/practice$/, viewGrammarPractice],
   [/^starred$/, viewStarred],
   [/^settings$/, viewSettings],
 ];
 const TAB_OF = { '': 'home', unit: 'home', learn: 'home', card: 'browse', browse: 'browse', quiz: 'quiz', starred: 'starred', settings: 'settings',
-  letters: 'home' };
+  letters: 'home', grammar: 'home' };
 const NO_TABBAR = new Set(['unit', 'learn', 'card', 'quiz/run', 'practice']);
 
 function currentPath() { return location.hash.replace(/^#\/?/, ''); }
@@ -284,12 +288,15 @@ function viewHome() {
     ${tiers}`;
 }
 
-// 課程入口（2026-10-02，旅ことば的五十音同一套）：四十音
+// 課程入口（2026-10-02，旅ことば的五十音同一套）：四十音；2026-10-03 加文法
 function extrasHTML() {
   const lp = lettersProgress();
   const ls = lp && lp.done ? `學完 ${lp.done}／${lp.total} 課` : '母音・子音・收音';
-  return `<div class="extras one" role="group" aria-label="課程">
+  const gp = grammarProgress();
+  const gs = gp && gp.done ? `學完 ${gp.done}／${gp.total} 課` : '助詞・句型・數字';
+  return `<div class="extras" role="group" aria-label="課程">
     <a class="extra" href="#/letters"><b class="ex-glyph" lang="ko">가</b><span class="ex-t"><b data-fit="13">四十音</b><small data-fit="9">${esc(ls)}</small></span></a>
+    <a class="extra" href="#/grammar"><b class="ex-glyph" lang="ko">문</b><span class="ex-t"><b data-fit="13">文法</b><small data-fit="9">${esc(gs)}</small></span></a>
   </div>`;
 }
 
@@ -832,7 +839,7 @@ async function viewSettings() {
       <button class="pill ghost small" data-dl="${t.id}">下載</button>
       <div class="bar" hidden><i></i></div>
     </div>`).join('') + `<div class="dl" data-dl-row="x">
-      <div><span class="s-label">四十音</span><span class="s-sub" data-dl-status="x">課程與專欄的發音</span></div>
+      <div><span class="s-label">四十音與文法</span><span class="s-sub" data-dl-status="x">課程與專欄的發音</span></div>
       <button class="pill ghost small" data-dl="x">下載</button>
       <div class="bar" hidden><i></i></div>
     </div>`;
@@ -1053,9 +1060,9 @@ document.addEventListener('touchend', (e) => {
 document.addEventListener('audio-error', () => toast('這個音檔還沒下載，連上網路後再試一次'));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setSkyMode(isDark()); render(); });
 
-// 課程與專欄的音檔（2026-10-02）：四十音
+// 課程與專欄的音檔（2026-10-02）：四十音；（2026-10-03）文法
 async function extraAudioUrls() {
-  return lettersAudio();
+  return [...lettersAudio(), ...grammarAudio()];
 }
 
 async function runDownload(tier, btn) {
@@ -1071,7 +1078,7 @@ async function runDownload(tier, btn) {
   });
   btn.textContent = res.failed ? '重試' : '已下載';
   btn.disabled = !res.failed;
-  toast(res.failed ? `有 ${res.failed} 個音檔沒下載成功，再按一次重試` : `${tier === 'x' ? '四十音' : TIER[tier].name}的發音都存到手機了`);
+  toast(res.failed ? `有 ${res.failed} 個音檔沒下載成功，再按一次重試` : `${tier === 'x' ? '四十音與文法' : TIER[tier].name}的發音都存到手機了`);
 }
 
 /* ---------- 啟動 ---------- */
@@ -1091,7 +1098,7 @@ if (splash) splash.addEventListener('pointerdown', () => hideSplash(true), { onc
 
 async function boot() {
   applyTheme();
-  const [res] = await Promise.all([fetch('data/cards.json'), loadLetters().catch(() => null)]);   // 四十音的課數給首頁入口格用
+  const [res] = await Promise.all([fetch('data/cards.json'), loadLetters().catch(() => null), loadGrammar().catch(() => null)]);   // 四十音與文法的課數給首頁入口格用
   DATA = await res.json();
   CARDS = DATA.cards;
   BYID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
@@ -1111,6 +1118,7 @@ async function boot() {
     c._rk = romaKey(c.rm || '');
   }
   setupLetters({ $app, I, esc, rubyHTML, toast, go, segsHTML, play, playFile, store, save, card: (id) => BYID[id] });
+  setupGrammar({ $app, I, esc, toast, go, segsHTML, playFile, store, save });
   renderedHash = location.hash;
   initTabbar();
   render();

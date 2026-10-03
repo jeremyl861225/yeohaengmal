@@ -956,3 +956,37 @@ html.splashing #app, html.splashing .tabbar { opacity: 0; }
 .nq-script span { font-family: var(--ko); font-size: 19px; }
 .nq-script small { font-family: var(--ko); font-size: 14px; color: var(--ink-2); }
 .nq-row .d-main { font-size: 17px; }
+
+/* 文法專欄（2026-10-03）：課程表沿用 lt-*，一課與練習用 gm-* */
+.group-title small { margin-left: 8px; font-family: var(--ui); font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.gm-sum { padding: 14px 16px 14px; font-size: 15px; line-height: 1.75; }
+.gm-formula { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.gm-chip { display: inline-block; max-width: 100%; padding: 5px 12px; border-radius: 999px; background: var(--glass-3); box-shadow: inset 0 1px 0 var(--edge), inset 0 0 0 1px var(--edge-2); font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.gm-body { margin-top: 10px; padding: 14px 16px 6px; }
+.gm-body p { margin: 0 0 10px; font-size: 15px; line-height: 1.85; }
+.gm-body b, .gm-sum b, .gm-notes b { font-weight: 800; }
+.gm-table { margin-top: 10px; padding: 6px 10px 8px; }
+.gm-table table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.gm-table th { text-align: left; font-family: var(--ui); font-size: 12px; font-weight: 700; color: var(--ink-3); padding: 8px 8px 6px; }
+.gm-table td { padding: 9px 8px; vertical-align: top; line-height: 1.55; box-shadow: inset 0 1px 0 var(--hair); overflow-wrap: anywhere; }
+.gm-table td:first-child { font-weight: 600; color: var(--ink-2); }
+.gm-exs { padding: 2px 14px; }
+.gm-ex { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: center; padding: 10px 0; cursor: pointer; }
+.gm-ex + .gm-ex { box-shadow: inset 0 1px 0 var(--hair); }
+.gm-ex:active { opacity: 0.7; }
+.gm-ko { font-size: 19px; font-weight: 500; line-height: 1.6; word-break: keep-all; }
+.gm-ko em, .gm-fix em { font-style: normal; font-weight: 900; background: linear-gradient(transparent 60%, color-mix(in srgb, var(--gold) 42%, transparent) 60%); }
+.gm-zh { font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+.gm-ex .d-say { grid-column: 2; grid-row: 1 / span 2; }
+.gm-notes { margin-top: 12px; }
+.gm-q { padding: 4px 0 6px; font-size: 24px; font-weight: 500; line-height: 1.6; word-break: keep-all; }
+.gm-blank { display: inline-block; width: 2.4em; height: 1.05em; vertical-align: -0.2em; margin: 0 2px; border-bottom: 3px solid var(--ink-3); }
+.gm-fill { padding: 0 3px; font-weight: 900; color: var(--ok); }
+.gm-qzh { margin-top: 4px; font-size: 16px; line-height: 1.5; color: var(--ink-2); }
+.gm-qzh.big { padding: 14px 0 4px; font-size: 26px; font-weight: 600; line-height: 1.4; color: var(--ink); }
+.gm-opt { font-size: 22px; font-weight: 500; line-height: 1.4; word-break: keep-all; }
+.tile.long .gm-opt { font-size: 19px; }
+.gm-fix { display: grid; gap: 2px; }
+.gm-fix .ko { font-family: var(--ko); font-size: 21px; font-weight: 500; color: var(--ink); line-height: 1.55; word-break: keep-all; }
+.gm-why { margin: 0 0 12px; font-size: 14.5px; line-height: 1.7; color: var(--ink-2); }
+.gm-table [lang="ko"], .gm-chip [lang="ko"], .gm-body [lang="ko"], .gm-notes [lang="ko"] { word-break: keep-all; }   /* 韓文字詞不從中間斷行，要斷就斷在空格或標點 */

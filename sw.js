@@ -1,6 +1,6 @@
 // 여행말 service worker
 // 同一個 github.io origin 上還有別的 PWA：只刪自己的舊快取、只攔自己子路徑的請求。
-const CACHE_VERSION = 'yeohaengmal-v11';
+const CACHE_VERSION = 'yeohaengmal-v12';
 const AUDIO_CACHE = 'yeohaengmal-audio'; // 不帶版本號：改版不清掉已下載的發音
 const CORE = [
   './',
@@ -8,6 +8,7 @@ const CORE = [
   'css/app.css',
   'js/app.js',
   'js/letters.js',
+  'js/grammar.js',
   'js/splash.js',
   'js/sky.js',
   'js/tabbar.js',
@@ -19,6 +20,7 @@ const CORE = [
   'data/dict.json',
   'data/cards.json',
   'data/letters.json',
+  'data/grammar.json',
   'fonts/ko-serif-500.woff2',
   'fonts/ko-serif-900.woff2',
   'fonts/zenold-500.woff2',
