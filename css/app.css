@@ -101,7 +101,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--sky-base); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--sky-base); touch-action: pan-x pan-y; }   /* 只能捲動、不能縮放（雙擊、兩指都不行；2026-10-03） */
 body {
   margin: 0;
   min-height: 100vh;
@@ -839,9 +839,11 @@ html.splashing #app, html.splashing .tabbar { opacity: 0; }
   background: var(--glass-3); box-shadow: inset 0 1px 0 var(--edge), 0 8px 16px -12px var(--shade);
   font-family: var(--head); font-weight: 900; font-size: 26px; line-height: 1;
 }
-.ex-t { display: grid; min-width: 0; }
-.ex-t b { font-family: var(--head); font-size: 16px; font-weight: 700; white-space: nowrap; }
-.ex-t small { font-family: var(--ui); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+/* 文字欄：寬度鎖在格子裡（minmax(0, 1fr)），一行字放不下時 data-fit 縮小；2026-10-03 使用者回報說明字溢出蓋到旁邊那格 */
+.ex-t { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; overflow: hidden; }
+.ex-t b { font-family: var(--head); font-size: 16px; font-weight: 700; line-height: 1.35; }
+.ex-t small { font-family: var(--ui); font-size: 12px; color: var(--ink-2); line-height: 1.35; }
+@media (max-width: 360px) { .extra { gap: 8px; padding: 8px 9px; } .ex-glyph { width: 36px; height: 36px; border-radius: 12px; font-size: 21px; } .ex-t b { font-size: 15px; } }
 
 /* 共用：頁首、分頁、提示 */
 .lt-head { margin: 4px 2px 12px; }

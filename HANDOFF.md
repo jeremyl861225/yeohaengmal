@@ -53,6 +53,11 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 - [ ] iPhone 實機：加到主畫面 → 設定頁下載必備線發音 → 飛航模式開一課、播發音、做測驗
 - [ ] impeccable 收尾（finish reviewer＋DESIGN.md）
 
+## 2026-10-03：首頁入口格（v9）
+- 不能縮放（使用者：日韓 App 都不要支援雙擊或兩指縮放）：同旅ことば v26 的做法（viewport、`touch-action: pan-x pan-y`、擋 gesture 事件與兩指 touchmove）。
+
+- 旅ことば的首頁入口格跑版（說明字溢出），同一套修正照搬：文字欄 `minmax(0, 1fr)` 鎖寬、說明字改短、360px 以下縮小內距。
+
 ## 2026-10-02：新圖示「여」、四十音課程（v8）
 
 使用者要求：圖示重做（顏色同 ShaderGradient、取消鐵軌、韓文改成一個字）；新增四十音課程（由我發揮）。

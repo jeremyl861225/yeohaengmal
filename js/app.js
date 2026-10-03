@@ -287,9 +287,9 @@ function viewHome() {
 // 課程入口（2026-10-02，旅ことば的五十音同一套）：四十音
 function extrasHTML() {
   const lp = lettersProgress();
-  const ls = lp ? (lp.done ? `學完 ${lp.done}／${lp.total} 課` : lp.sub) : '母音・子音・收音';
+  const ls = lp && lp.done ? `學完 ${lp.done}／${lp.total} 課` : '母音・子音・收音';
   return `<div class="extras one" role="group" aria-label="課程">
-    <a class="extra" href="#/letters"><b class="ex-glyph" lang="ko">가</b><span class="ex-t"><b data-fit="13">四十音</b><small data-fit="10">${esc(ls)}</small></span></a>
+    <a class="extra" href="#/letters"><b class="ex-glyph" lang="ko">가</b><span class="ex-t"><b data-fit="13">四十音</b><small data-fit="9">${esc(ls)}</small></span></a>
   </div>`;
 }
 

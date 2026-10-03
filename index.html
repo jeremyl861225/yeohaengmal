@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>여행말｜韓國旅遊單字卡</title>
 <meta name="description" content="韓國旅遊常用韓文單字卡：漢字標註、實際唸法、發音、例句，依旅遊實用頻率分課與測驗。">
 <meta name="theme-color" content="#e9c8b4">
@@ -21,6 +21,10 @@
   try { var t = (JSON.parse(localStorage.getItem('yeohaengmal/v1') || '{}').settings || {}).theme; if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   // 開場（js/splash.js）：開場期間先藏住 App 本體，開場結束後才淡入；減少動態效果時沒有開場
   if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) document.documentElement.classList.add('splashing');
+  // 不能縮放（2026-10-03 使用者要求：不要支援雙擊或兩指縮放，固定頁寬）。iOS 會忽略 user-scalable=no，
+  // 所以再擋 Safari 的縮放手勢事件與兩指觸控；雙擊放大由 CSS 的 touch-action 擋（不用 JS 擋，數字鍵連按才不會被吃掉）
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 </script>
 </head>
 <body>
