@@ -298,6 +298,16 @@ def counter_problems(text):
     return bad
 
 
+# 2026-10-03 聲紋比對（tools/tts_check.py）抓到的人工修正：{編號: {r 卡上顯示的唸法, say_w 單字音檔朗讀文字, say_x 例句音檔朗讀文字}}
+# 語音會把拉丁字母丟掉（T、LA），自動算出的唸法也不認得縮寫與阿拉伯數字，這幾張只能手寫。
+FIX_PRON = {
+    "1178": {"say_w": "카카오 티"},                                                          # 單字音檔原本漏了 T
+    "1210": {"r": "엘에이 갈비", "say_w": "엘에이 갈비", "say_x": "엘에이 갈비 하나 주세요."},   # LA 原本被丟掉；唸法原本寫成「라갈비」
+    "1093": {"r": "이번 출구"},                                                              # 出口號碼用漢數詞；音檔本來就對，是卡上寫成「두번」
+    "0948": {"r": "스물네시간 우녕"},                                                        # 語音念 스물네 시간（例句音檔也是），卡上跟著改
+}
+
+
 def main():
     sel = json.load(open(os.path.join(BUILD, "selection.json"), encoding="utf-8"))
     authored = {}
@@ -350,13 +360,16 @@ def main():
             rm = romanize(re.sub(r"[^가-힣 ?.!,]", "", head).strip(), re.sub(r"[^가-힣 ?.!,]", "", p).strip() if p else None)
         ex = a.get("ex", "").strip()
         zh = a.get("zh", "").strip()
+        fx = FIX_PRON.get(c["id"], {})
+        if "r" in fx:
+            r, rm = fx["r"], romanize(fx["r"], fx["r"])
         card = {"id": c["id"], "w": w, "r": r, "rm": rm, "zh": zh, "pos": a.get("pos", ""),
                 "th": c["theme"], "t": c["tier"], "rank": c["rank"], "n": c["n"], "no": c["no"],
                 "ex": ex, "exz": a.get("exz", "").strip(), "note": a.get("note", "").strip(), "k": kind}
         if not card["note"]:
             del card["note"]
         cards.append(card)
-        tts[c["id"]] = {"w": spoken or plain_head, "x": ex}
+        tts[c["id"]] = {"w": fx.get("say_w") or spoken or plain_head, "x": fx.get("say_x") or ex}
 
         # ---- 檢查 ----
         if re.search(r"_{2,}|…|\.\.\.|~|\(|\)", head):

@@ -1,6 +1,6 @@
 // 여행말 service worker
 // 同一個 github.io origin 上還有別的 PWA：只刪自己的舊快取、只攔自己子路徑的請求。
-const CACHE_VERSION = 'yeohaengmal-v10';
+const CACHE_VERSION = 'yeohaengmal-v11';
 const AUDIO_CACHE = 'yeohaengmal-audio'; // 不帶版本號：改版不清掉已下載的發音
 const CORE = [
   './',
@@ -30,6 +30,23 @@ const CORE = [
 ];
 const SCOPE_PATH = new URL('./', self.location).pathname;
 
+// 內容改過、網址沒變的發音檔（音檔名＝卡片編號，x＝例句）。發音快取不隨版本清掉，
+// 所以每一批只在第一次啟用時從快取刪一次（快取裡放一個記號），下次播放就會重新下載新檔。
+const AUDIO_REDO = {
+  // 2026-10-03 v11：單字音檔漏念 T、LA（카카오 T、LA갈비），LA갈비的例句一併重做
+  v11: ['1178', '1210', '1210x'],
+};
+
+async function dropRedoneAudio() {
+  const cache = await caches.open(AUDIO_CACHE);
+  for (const [batch, stems] of Object.entries(AUDIO_REDO)) {
+    const mark = new URL(`audio/.redo-${batch}`, self.location).href;
+    if (await cache.match(mark)) continue;
+    await Promise.all(stems.flatMap((s) => ['f', 'm'].map((v) => cache.delete(new URL(`audio/${v}/${s}.mp3`, self.location).href))));
+    await cache.put(mark, new Response('1'));
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });
@@ -38,6 +55,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k.startsWith('yeohaengmal-v') && k !== CACHE_VERSION).map((k) => caches.delete(k))))
+      .then(() => dropRedoneAudio().catch(() => {}))
       .then(() => self.clients.claim())
   );
 });

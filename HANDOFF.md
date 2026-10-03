@@ -59,6 +59,20 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 
 - 旅ことば的首頁入口格跑版（說明字溢出），同一套修正照搬：文字欄 `minmax(0, 1fr)` 鎖寬、說明字改短、360px 以下縮小內距。
 
+## 2026-10-03：發音檢查與修正（v11）
+
+使用者問「韓文發音有確認過了嗎？」——之前只確認過 4,800 檔都產生成功，沒有比對念法。這次用 `tools/tts_check.py`（聲紋 MFCC＋DTW，同旅ことば）：
+- 271 張「唸法≠寫法」的單字：228 張念法一樣（距離 < 4，語音自己有套連音、鼻音化），40 張 4–9（多半只差語調；其中幾張是跨空格的硬音化如 예약 번호→뻔호，音檔可能沒念成卡上的音，未判定），3 張 ≥ 12 ＋ 1 張邊緣＝**真問題**，已修（`build_data.py` 的 `FIX_PRON`）：
+  - 1178 카카오 T：單字音檔漏念 T → 送「카카오 티」
+  - 1210 LA갈비：單字音檔漏念 LA、卡上唸法寫成「라갈비」→ 唸法「엘에이 갈비」、單字與例句音檔都送 Hangul
+  - 1093 2번 출구：音檔是對的（이 번），卡上唸法寫成「두번」→ 改「이번 출구」
+  - 0948 24시간 운영：語音念 스물네 시간（例句 0948x、1163x 也是）、卡上寫 이십싸시간 → 卡上跟著改「스물네시간 우녕」
+  修完重比：四張的音檔 vs 卡上唸法距離 0.7–1.3。
+- 35 句帶阿拉伯數字的例句，用漢數詞拼法比過，都念對（2인분＝이인분、3번＝삼번…）；只有「24시간」念 스물네。
+- **沒驗證到**：四十音 61 個單音節（男女聲音色差太大，聲紋比不出來）、約 2,400 句其餘例句、857 個唸法＝寫法的單字。要涵蓋得用韓文語音辨識（Whisper）或人聽。
+- 語音會**丟掉拉丁字母**（T、LA）：之後新增含英文字母的卡，`tts.json` 的朗讀文字要自己寫成 Hangul（`FIX_PRON` 的 `say_w`／`say_x`）。
+- `sw.js` 補上 `AUDIO_REDO`（同旅ことば）：發音快取不隨版本清掉，改過內容的音檔要列在這裡，手機才會重新下載（v11：1178、1210、1210x）。
+
 ## 2026-10-02：新圖示「여」、四十音課程（v8）
 
 使用者要求：圖示重做（顏色同 ShaderGradient、取消鐵軌、韓文改成一個字）；新增四十音課程（由我發揮）。
@@ -95,6 +109,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 | `tools/make_font.py` | 字型子集：Noto Serif KR 500／900 → `fonts/ko-serif-500.woff2`、`ko-serif-900.woff2`；Zen Old Mincho（中文標題，只收介面用字）→ `fonts/zenold-500.woff2`、`zenold-900.woff2`（資料或介面文字改了要重跑並升 CACHE_VERSION） |
 | `tools/make_icons.py` | 圖示（`--text`、`--font` 可做候選） |
 | `tools/make_audio.py` | edge-tts 發音（f／m） |
+| `tools/tts_check.py` | 發音檢查：卡上唸法 vs 現有音檔的聲紋距離（`synth`／`score`） |
 
 管線（都已改成韓文版）：`pipeline/normalize.py`、`auto_drop.py`、`curate_prep.py`（依優先序切批；`YH_KEEP_IN` 保留進行中的批次）、`auto_curate.py`、`tri2out.py`、`select.py`（主題保底 30、DR 上限 20、`force` 指定收錄）、`author_prep.py`、`g2p_batch.py`；`tools/build_data.py`、`build_dict.py`（離線字典 20,947 詞）、`e2e.py`。
 
