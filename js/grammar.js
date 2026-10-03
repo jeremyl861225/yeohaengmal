@@ -80,7 +80,7 @@ export function viewGrammar() {
 
 /* ---------- 一課 ---------- */
 function tableHTML(t) {
-  return `<div class="panel gm-table"><table>
+  return `<div class="panel gm-table${t.head.length >= 4 ? ' c4' : ''}"><table>
     <thead><tr>${t.head.map((h) => `<th>${rich(h)}</th>`).join('')}</tr></thead>
     <tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${rich(c)}</td>`).join('')}</tr>`).join('')}</tbody>
   </table></div>`;

@@ -968,7 +968,10 @@ html.splashing #app, html.splashing .tabbar { opacity: 0; }
 .gm-table { margin-top: 10px; padding: 6px 10px 8px; }
 .gm-table table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .gm-table th { text-align: left; font-family: var(--ui); font-size: 12px; font-weight: 700; color: var(--ink-3); padding: 8px 8px 6px; }
-.gm-table td { padding: 9px 8px; vertical-align: top; line-height: 1.55; box-shadow: inset 0 1px 0 var(--hair); overflow-wrap: anywhere; }
+.gm-table td { padding: 9px 8px; vertical-align: top; line-height: 1.55; box-shadow: inset 0 1px 0 var(--hair); overflow-wrap: break-word; }
+.gm-table { overflow-x: auto; }
+.gm-table.c4 table { font-size: 13.5px; }   /* 四欄的表（變化表）：字小一點、左右留白少一點，韓文字才不會被切在中間 */
+.gm-table.c4 th, .gm-table.c4 td { padding-left: 5px; padding-right: 5px; }
 .gm-table td:first-child { font-weight: 600; color: var(--ink-2); }
 .gm-exs { padding: 2px 14px; }
 .gm-ex { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: center; padding: 10px 0; cursor: pointer; }

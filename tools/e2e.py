@@ -273,7 +273,7 @@ def main():
                 check(rec_ and rec_.get("done") and rec_["best"] == rec_["total"], f"{lid} 練習全對卻沒記成學完：{rec_}")
         pg.goto(BASE + "#/")
         pg.wait_for_selector(".extras .extra")
-        check("學完 3／27" in pg.inner_text(".extras"), "首頁入口格沒有顯示文法學完的課數")
+        check(f"學完 3／{len(g_all)}" in pg.inner_text(".extras"), "首頁入口格沒有顯示文法學完的課數")
 
         # 數字與量詞專欄＋數字聽力（日文版，2026-10-02）：音檔齊全、變音有標色、照答案按數字鍵會全對
         npath = os.path.join(ROOT, "data", "numbers.json")

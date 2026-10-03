@@ -1,4 +1,4 @@
-"""文法專欄資料（2026-10-03）：tools/grammar/{a,c,d,e}.py（內容手寫）→ data/grammar.json，並列出要合成的音檔。
+"""文法專欄資料（2026-10-03）：tools/grammar/{a,c,d,e,f}.py（內容手寫）→ data/grammar.json，並列出要合成的音檔。
 
 輸出
 - data/grammar.json：{ title, intro, groups: [{ title, lessons: [{ id, title, sub, summary, formula[], body[], table, ex[], notes[], quiz[] }] }] }
@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from grammar.a import GROUP_A, GROUP_B   # noqa: E402
 from grammar.c import GROUP_C            # noqa: E402
 from grammar.d import GROUP_D            # noqa: E402
+from grammar.f import GROUP_F            # noqa: E402
 from grammar.e import GROUP_E            # noqa: E402
 
 VOICE, RATE = "f", "-10%"
@@ -101,7 +102,7 @@ def lesson_out(l):
 def main():
     groups = []
     ids = set()
-    for g in (GROUP_A, GROUP_B, GROUP_C, GROUP_D, GROUP_E):
+    for g in (GROUP_A, GROUP_B, GROUP_C, GROUP_F, GROUP_D, GROUP_E):
         out = {"title": g["title"], "lessons": []}
         for l in g["lessons"]:
             if l["id"] in ids:
@@ -115,7 +116,7 @@ def main():
     n = sum(len(g["lessons"]) for g in groups)
     data = {
         "version": datetime.date.today().isoformat(), "lang": "ko", "title": "文法",
-        "intro": f"從語序、助詞到旅行最常用的句型，共 {n} 課。每課先看重點與例句（點一下就能聽），再做練習；答對八成算學完。",
+        "intro": f"從語序、助詞、動詞變化（含不規則變化）到旅行最常用的句型，共 {n} 課。每課先看重點與例句（點一下就能聽），再做練習；答對八成算學完。",
         "groups": groups,
     }
     with open(os.path.join(ROOT, "data", "grammar.json"), "w", encoding="utf-8") as f:
