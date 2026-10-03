@@ -41,7 +41,7 @@ colors:
 typography:
   display:
     fontFamily: "Yeohaengmal Serif (Noto Serif KR subset), Noto Serif KR, AppleMyungjo, Nanum Myeongjo, Batang, serif"
-    fontSize: "clamp(40px, 24vw, 96px)"
+    fontSize: "clamp(32px, 18vw, 72px)"
     fontWeight: 900
     lineHeight: 1.3
     letterSpacing: "0.02em"
@@ -175,7 +175,7 @@ components:
 **Character:** 韓文明朝的粗筆配舊明朝的中文標題，都是有筆鋒的襯線字。漢字詞上方用小字標漢字（宋體）。
 
 ### Hierarchy
-- **Display** (900, 依字數自動縮放、上限 96px, 1.3)：字卡的韓文大字；下方是實際唸法［가치］與羅馬拼音。
+- **Display** (900, 依字數自動縮放、上限 72px（2026-10-03 使用者嫌太大）, 1.3)：字卡的韓文大字；下方是實際唸法［가치］與羅馬拼音。
 - **Headline** (900, 40px, 1.2)：首頁下一站站名。
 - **Title** (900, 23px)：路線分級標題；家族名 16px／700。
 - **Body** (400, 16px, 1.55)：中文內文；字卡中文意思 24px／600。

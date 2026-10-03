@@ -901,7 +901,7 @@ html.splashing #app, html.splashing .tabbar { opacity: 0; }
 .lt-notes h2 { margin: 0 0 4px; font-family: var(--head); font-size: 16px; font-weight: 700; }
 .lt-notes ul { margin: 0; padding-left: 1.2em; font-size: 14px; line-height: 1.7; color: var(--ink-2); }
 .lt-notes li { margin-bottom: 6px; }
-.lt-big { font-size: 96px; font-weight: 500; line-height: 1.2; padding: 8px 0 2px; }
+.lt-big { font-size: 72px; font-weight: 500; line-height: 1.2; padding: 8px 0 2px; }
 .lt-opt { font-size: 32px; }
 
 /* 數字與量詞 */

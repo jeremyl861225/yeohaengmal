@@ -55,6 +55,7 @@ repo：`jeremyl861225/yeohaengmal`（public）。做法照 skill **`travel-vocab
 
 ## 2026-10-03：首頁入口格（v9）
 - 不能縮放（使用者：日韓 App 都不要支援雙擊或兩指縮放）：同旅ことば v26 的做法（viewport、`touch-action: pan-x pan-y`、擋 gesture 事件與兩指 touchmove）。
+- 字卡大字上限 96px → **72px**（使用者：字體太大，設上限；日文版同一天一起改）；四十音練習題的大字 96 → 72px。快取 v10。
 
 - 旅ことば的首頁入口格跑版（說明字溢出），同一套修正照搬：文字欄 `minmax(0, 1fr)` 鎖寬、說明字改短、360px 以下縮小內距。
 
